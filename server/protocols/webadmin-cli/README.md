@@ -4,21 +4,21 @@
 
 Webadmin command-line interface is an upcoming replacement for the outdated, security-vulnerable JMX command-line interface. It also aims at providing a more modern and intuitive interface.
 
-## Run the script
+## Run the command line
 
 ## Syntax
 
-General syntax to run the script
+General syntax to run the command line
 
 ```   
-$ ./james_cli [OPTION] ENTITY ACTION {ARGUMENT}
+$ java -jar james_cli.jar [OPTION] ENTITY ACTION {ARGUMENT}
 ```
 
 where
 
-    OPTION: optional parameter when running the script,
+    OPTION: optional parameter when running the command line,
   
-    ENTITY: represents the route performing actions,
+    ENTITY: represents the entity to perform action on,
   
     ACTION: name of the action to perform,
   
@@ -26,14 +26,14 @@ where
 
 Example: 
 ```
-$ ./james_cli --url http://127.0.0.1 --port 9999 domain list
+$ java -jar james_cli.jar --url http://127.0.0.1 --port 9999 domain list
 ```
 
 The above command lists all domain names available on domain route at address http://127.0.0.1:9999. 
 It does not require any argument to execute. Options --url and --port are optional. Without them, the default value is http://127.0.0.0:8000.
 As for other commands, arguments might be required after the sub-command (ACTION such as list, add and remove).
 
-Note: the command line ```$ ./james_cli``` will be shorten as {cli} from here.
+Note: the command line ```$ java -jar james_cli.jar``` will be shorten as {cli} from here.
 
 ## Navigation menu
 
@@ -121,7 +121,7 @@ Show all users' name on the list.
 ```
 
 ### Update an user password
-Same than Create, but an user need to exist.
+Same as Create, but an user need to exist.
 
 If the user do not exist, then it will be created.
 
