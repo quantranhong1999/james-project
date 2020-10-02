@@ -8,18 +8,3 @@ dockerfiles/run/**/glowroot
 test-run.log
 build
 
-*.iml
-.idea
-*.lib
-*.jar
-.floo
-.flooignore
-.m2
-_site/
-keystore
-derby.log
-src/homepage/Gemfile.lock
-mailbox/var/
-src/homepage/.sass-cache/
-KahaDB/
-.attach_pid*
