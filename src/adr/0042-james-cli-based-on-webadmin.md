@@ -2,7 +2,7 @@
 Date: 2020-10-05
 
 ## Status
-Accepted.
+Accepted (lazy consensus).
 
  ## Context
 
