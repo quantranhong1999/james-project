@@ -17,44 +17,34 @@
  * under the License.                                             *
  ******************************************************************/
 
-package org.apache.james.cli;
+package org.apache.james.cli.domain;
 
-import org.apache.james.cli.domain.DomainManage;
+import feign.Feign;
+import feign.gson.GsonDecoder;
+import org.apache.james.cli.WebAdminCli;
+import org.apache.james.httpclient.DomainClient;
 import picocli.CommandLine;
 
 @CommandLine.Command(
-        name = "james-cli",
-        description = "James Webadmin CLI",
-        mixinStandardHelpOptions = true,
-        version = "1.0",
-        subcommands = {
-                DomainManage.class,
-                CommandLine.HelpCommand.class
-        }
+        name = "list",
+        description = "Show all domains on the domains list"
 )
-public class WebAdminCli implements Runnable {
+public class DomainListCommand implements Runnable {
 
-    public @CommandLine.Option(
-            names = "--url",
-            description = "James server URL",
-            defaultValue = "127.0.0.1" //hard code for now easily develop on local server
-    )
-    String jamesUrl;
-
-    public @CommandLine.Option(
-            names = "--port",
-            description = "James server Port number",
-            defaultValue = "8000"
-    )
-    String jamesPort;
+    @CommandLine.ParentCommand
+    DomainManage domainManage;
 
     @Override
     public void run() {
-
-    }
-
-    public static void main(String[] args) {
-        new CommandLine(new WebAdminCli()).execute(args);
+        try {
+            DomainClient domainClient = Feign.builder()
+                    .decoder(new GsonDecoder())
+                    .target(DomainClient.class,"http://" + domainManage.webAdminCli.jamesUrl + ":" + domainManage.webAdminCli.jamesPort + "/domains");
+            if (domainClient.getDomainList().size() == 0) System.out.println("There is no domain available on the domains list.");
+                else domainClient.getDomainList().forEach(domainName -> System.out.println(domainName));
+        } catch(Exception e) {
+            System.out.println(e.getMessage());
+        }
     }
 
 }

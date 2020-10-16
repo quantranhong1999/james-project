@@ -17,44 +17,27 @@
  * under the License.                                             *
  ******************************************************************/
 
-package org.apache.james.cli;
+package org.apache.james.httpclient;
 
-import org.apache.james.cli.domain.DomainManage;
-import picocli.CommandLine;
+import feign.Feign;
+import feign.gson.GsonDecoder;
+import org.junit.jupiter.api.Test;
 
-@CommandLine.Command(
-        name = "james-cli",
-        description = "James Webadmin CLI",
-        mixinStandardHelpOptions = true,
-        version = "1.0",
-        subcommands = {
-                DomainManage.class,
-                CommandLine.HelpCommand.class
-        }
-)
-public class WebAdminCli implements Runnable {
+import static org.assertj.core.api.Assertions.assertThat;
 
-    public @CommandLine.Option(
-            names = "--url",
-            description = "James server URL",
-            defaultValue = "127.0.0.1" //hard code for now easily develop on local server
-    )
-    String jamesUrl;
 
-    public @CommandLine.Option(
-            names = "--port",
-            description = "James server Port number",
-            defaultValue = "8000"
-    )
-    String jamesPort;
+public class DomainClientTest {
 
-    @Override
-    public void run() {
+    private static final String JAMES_URL = "127.0.0.1";
+    private static final String JAMES_PORT = "8000";
 
-    }
-
-    public static void main(String[] args) {
-        new CommandLine(new WebAdminCli()).execute(args);
+    @Test
+    void getDomainListShouldWork() {
+        DomainClient domainClient = Feign.builder()
+                .decoder(new GsonDecoder())
+                .target(DomainClient.class,"http://" + JAMES_URL + ":" + JAMES_PORT + "/domains");
+        domainClient.getDomainList().forEach(domainName -> assertThat(domainName instanceof String).isTrue());
+        assertThat(domainClient.getDomainList().contains("localhost")); // default domain
     }
 
 }

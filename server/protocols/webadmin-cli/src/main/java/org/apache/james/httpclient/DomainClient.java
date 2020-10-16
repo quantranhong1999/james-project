@@ -17,44 +17,13 @@
  * under the License.                                             *
  ******************************************************************/
 
-package org.apache.james.cli;
+package org.apache.james.httpclient;
 
-import org.apache.james.cli.domain.DomainManage;
-import picocli.CommandLine;
+import feign.RequestLine;
 
-@CommandLine.Command(
-        name = "james-cli",
-        description = "James Webadmin CLI",
-        mixinStandardHelpOptions = true,
-        version = "1.0",
-        subcommands = {
-                DomainManage.class,
-                CommandLine.HelpCommand.class
-        }
-)
-public class WebAdminCli implements Runnable {
+import java.util.ArrayList;
 
-    public @CommandLine.Option(
-            names = "--url",
-            description = "James server URL",
-            defaultValue = "127.0.0.1" //hard code for now easily develop on local server
-    )
-    String jamesUrl;
-
-    public @CommandLine.Option(
-            names = "--port",
-            description = "James server Port number",
-            defaultValue = "8000"
-    )
-    String jamesPort;
-
-    @Override
-    public void run() {
-
-    }
-
-    public static void main(String[] args) {
-        new CommandLine(new WebAdminCli()).execute(args);
-    }
-
+public interface DomainClient {
+    @RequestLine("GET")
+    ArrayList<String> getDomainList();
 }

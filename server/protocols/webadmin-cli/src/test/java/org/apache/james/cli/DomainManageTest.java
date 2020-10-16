@@ -19,42 +19,39 @@
 
 package org.apache.james.cli;
 
-import org.apache.james.cli.domain.DomainManage;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import picocli.CommandLine;
 
-@CommandLine.Command(
-        name = "james-cli",
-        description = "James Webadmin CLI",
-        mixinStandardHelpOptions = true,
-        version = "1.0",
-        subcommands = {
-                DomainManage.class,
-                CommandLine.HelpCommand.class
-        }
-)
-public class WebAdminCli implements Runnable {
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 
-    public @CommandLine.Option(
-            names = "--url",
-            description = "James server URL",
-            defaultValue = "127.0.0.1" //hard code for now easily develop on local server
-    )
-    String jamesUrl;
+import static org.assertj.core.api.Assertions.assertThat;
 
-    public @CommandLine.Option(
-            names = "--port",
-            description = "James server Port number",
-            defaultValue = "8000"
-    )
-    String jamesPort;
+public class DomainManageTest {
 
-    @Override
-    public void run() {
+    private static final String JAMES_URL = "127.0.0.1";
+    private static final String JAMES_PORT = "8000";
 
+    private final PrintStream standardOut = System.out;
+    private final ByteArrayOutputStream outputStreamCaptor = new ByteArrayOutputStream();
+
+    @BeforeEach
+    void setup() {
+        System.setOut(new PrintStream(outputStreamCaptor));
     }
 
-    public static void main(String[] args) {
-        new CommandLine(new WebAdminCli()).execute(args);
+    @AfterEach
+    void tearDown() {
+        System.setOut(standardOut);
+    }
+
+    @Test
+    void domainListCommandShouldWork() {
+        new CommandLine(new WebAdminCli()).execute("--url", JAMES_URL, "--port", JAMES_PORT, "domain", "list");
+        assertThat(outputStreamCaptor.toString()).isNotEmpty(); // cause either print list domains or print error message
+        assertThat(outputStreamCaptor.toString().contains("localhost")); // default domain
     }
 
 }
