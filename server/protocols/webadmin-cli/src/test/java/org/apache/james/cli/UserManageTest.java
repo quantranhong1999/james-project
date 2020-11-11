@@ -62,15 +62,17 @@ public class UserManageTest {
     }
 
     @Test
-    void userListShouldShowAddedUser(GuiceJamesServer server) throws Exception {
+    void userListShouldShowTwoAddedUser(GuiceJamesServer server) throws Exception {
         Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
         dataProbe = server.getProbe(DataProbeImpl.class);
-        dataProbe.fluent().addDomain("linagora.com").addUser("hqtran@linagora.com", "123456");
+        dataProbe.fluent().addDomain("linagora.com")
+            .addUser("hqtran@linagora.com", "123456")
+            .addUser("testing@linagora.com", "123456");
 
         int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
             "--url", "http://127.0.0.1:" + port.getValue(), "user", "list");
 
         assertThat(exitCode).isEqualTo(0);
-        assertThat(outputStreamCaptor.toString().trim()).isEqualTo("hqtran@linagora.com");
+        assertThat(outputStreamCaptor.toString().trim().toCharArray()).containsOnly("hqtran@linagora.com".concat("\n").concat("testing@linagora.com").toCharArray());
     }
 }
