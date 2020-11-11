@@ -22,7 +22,9 @@ package org.apache.james.cli;
 import static org.apache.james.MemoryJamesServerMain.IN_MEMORY_SERVER_AGGREGATE_MODULE;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.io.PrintStream;
 
 import org.apache.james.GuiceJamesServer;
@@ -75,4 +77,26 @@ public class UserManageTest {
         assertThat(exitCode).isEqualTo(0);
         assertThat(outputStreamCaptor.toString().trim().toCharArray()).containsOnly("hqtran@linagora.com".concat("\n").concat("testing@linagora.com").toCharArray());
     }
+
+    @Test
+    void userCreateShouldAddValidUserSucceed(GuiceJamesServer server) throws Exception {
+        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
+        dataProbe = server.getProbe(DataProbeImpl.class);
+        dataProbe.addDomain("linagora.com");
+        dataProbe.fluent().addDomain("linagora.com")
+            .addUser("hqtran@linagora.com", "123456")
+            .addUser("testing@linagora.com", "123456");
+
+        int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+            "--url", "http://127.0.0.1:" + port.getValue(), "user", "create", "hqtran@localhost");
+
+        System.setIn(new ByteArrayInputStream("text\n".getBytes()));
+
+        WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+            "--url", "http://127.0.0.1:" + port.getValue(), "user", "list");
+
+        assertThat(exitCode).isEqualTo(0);
+        assertThat(outputStreamCaptor.toString()).contains("hqtran@localhost");
+    }
+
 }
