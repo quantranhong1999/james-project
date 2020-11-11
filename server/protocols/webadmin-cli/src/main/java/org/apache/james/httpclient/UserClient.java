@@ -21,11 +21,13 @@ package org.apache.james.httpclient;
 
 import java.util.List;
 
+import org.apache.james.httpclient.model.UserName;
+
 import feign.RequestLine;
 
 public interface UserClient {
 
     @RequestLine("GET")
-    List<String> getDomainList();
+    List<UserName> getUserNameList();
 
 }

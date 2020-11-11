@@ -17,36 +17,17 @@
  * under the License.                                             *
  ******************************************************************/
 
-package org.apache.james.cli.user;
+package org.apache.james.httpclient.model;
 
-import java.util.concurrent.Callable;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-import org.apache.james.cli.WebAdminCli;
-import org.apache.james.httpclient.UserClient;
+public class UserName {
 
-import feign.Feign;
-import feign.jackson.JacksonDecoder;
-import picocli.CommandLine;
+    @JsonProperty("username")
+    private String userName;
 
-@CommandLine.Command(
-    name = "list",
-    description = "Show all users on the users list")
-public class UserListCommand implements Callable<Integer> {
-
-    @CommandLine.ParentCommand UserCommand userCommand;
-
-    @Override
-    public Integer call() {
-        try {
-            UserClient userClient = Feign.builder()
-                .decoder(new JacksonDecoder())
-                .target(UserClient.class, userCommand.webAdminCli.jamesUrl + "/users");
-            userClient.getUserNameList().forEach(userName -> userCommand.out.println(userName.getUserName()));
-            return WebAdminCli.CLI_FINISHED_SUCCEED;
-        } catch (Exception e) {
-            e.printStackTrace(userCommand.err);
-            return WebAdminCli.CLI_FINISHED_FAILED;
-        }
+    public String getUserName() {
+        return userName;
     }
 
 }

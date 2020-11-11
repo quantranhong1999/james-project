@@ -30,6 +30,7 @@ import org.apache.james.JamesServerBuilder;
 import org.apache.james.JamesServerExtension;
 import org.apache.james.modules.TestJMAPServerModule;
 import org.apache.james.util.Port;
+import org.apache.james.utils.DataProbeImpl;
 import org.apache.james.utils.WebAdminGuiceProbe;
 import org.apache.james.webadmin.integration.WebadminIntegrationTestModule;
 import org.junit.jupiter.api.Test;
@@ -47,9 +48,10 @@ public class UserManageTest {
 
     private final ByteArrayOutputStream outputStreamCaptor = new ByteArrayOutputStream();
     private final ByteArrayOutputStream errorStreamCaptor = new ByteArrayOutputStream();
+    private DataProbeImpl dataProbe;
 
     @Test
-    void userListWithNonUserShouldEmpty(GuiceJamesServer server) {
+    void userListShouldBeEmptyWhenNoUsers(GuiceJamesServer server) {
         Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
 
         int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
@@ -59,4 +61,16 @@ public class UserManageTest {
         assertThat(outputStreamCaptor.toString()).isEqualTo("");
     }
 
+    @Test
+    void userListShouldShowAddedUser(GuiceJamesServer server) throws Exception {
+        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
+        dataProbe = server.getProbe(DataProbeImpl.class);
+        dataProbe.fluent().addDomain("linagora.com").addUser("hqtran@linagora.com", "123456");
+
+        int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+            "--url", "http://127.0.0.1:" + port.getValue(), "user", "list");
+
+        assertThat(exitCode).isEqualTo(0);
+        assertThat(outputStreamCaptor.toString().trim()).isEqualTo("hqtran@linagora.com");
+    }
 }
