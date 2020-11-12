@@ -43,8 +43,8 @@ public class UserCreateCommand implements Callable<Integer> {
     @CommandLine.Parameters(description = "Username")
     String userName;
 
-    @CommandLine.Parameters(description = "Password", interactive = true)
-    String password;
+    @CommandLine.Option(names = {"-p", "--password"}, description = "Password", arity = "0..1", interactive = true, required = true)
+    char[] password;
 
     @Override
     public Integer call() {
@@ -52,9 +52,9 @@ public class UserCreateCommand implements Callable<Integer> {
             UserClient userClient = Feign.builder()
                 .encoder(new JacksonEncoder())
                 .target(UserClient.class, userCommand.webAdminCli.jamesUrl + "/users");
-            Response rs = userClient.createAUser(userName, new UserPassword(password));
+            Response rs = userClient.createAUser(userName, new UserPassword(new String(password)));
             if (rs.status() == CREATED_CODE) {
-                userCommand.out.println("The user was successfully created");
+                userCommand.out.println("The user was created successfully");
                 return WebAdminCli.CLI_FINISHED_SUCCEED;
             } else if (rs.status() == BAD_REQUEST_CODE) {
                 userCommand.out.println("The user name or the payload is invalid");

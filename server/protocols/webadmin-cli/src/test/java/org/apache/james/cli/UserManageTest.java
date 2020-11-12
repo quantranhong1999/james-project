@@ -22,9 +22,7 @@ package org.apache.james.cli;
 import static org.apache.james.MemoryJamesServerMain.IN_MEMORY_SERVER_AGGREGATE_MODULE;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
 import java.io.PrintStream;
 
 import org.apache.james.GuiceJamesServer;
@@ -82,21 +80,32 @@ public class UserManageTest {
     void userCreateShouldAddValidUserSucceed(GuiceJamesServer server) throws Exception {
         Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
         dataProbe = server.getProbe(DataProbeImpl.class);
-        dataProbe.addDomain("linagora.com");
-        dataProbe.fluent().addDomain("linagora.com")
-            .addUser("hqtran@linagora.com", "123456")
-            .addUser("testing@linagora.com", "123456");
+        dataProbe.fluent().addDomain("linagora.com");
 
         int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
-            "--url", "http://127.0.0.1:" + port.getValue(), "user", "create", "hqtran@localhost");
-
-        System.setIn(new ByteArrayInputStream("text\n".getBytes()));
-
-        WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
-            "--url", "http://127.0.0.1:" + port.getValue(), "user", "list");
+            "--url", "http://127.0.0.1:" + port.getValue(), "user", "create", "hqtran@linagora.com", "--password", "123456");
 
         assertThat(exitCode).isEqualTo(0);
-        assertThat(outputStreamCaptor.toString()).contains("hqtran@localhost");
+        assertThat(outputStreamCaptor.toString().trim()).isEqualTo("The user was created successfully");
+        assertThat(dataProbe.listUsers()).containsOnly("hqtran@linagora.com");
+    }
+
+    @Test
+    void userCreateShouldFailWithInvalidUsername(GuiceJamesServer server) throws Exception {
+        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
+        dataProbe = server.getProbe(DataProbeImpl.class);
+        dataProbe.fluent().addDomain("linagora.com");
+
+        int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+            "--url", "http://127.0.0.1:" + port.getValue(), "user", "create", "hq/tran@linagora.com", "--password", "123456");
+
+        int exitCode1 = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+            "--url", "http://127.0.0.1:" + port.getValue(), "user", "create", "hqtran@google.com", "--password", "123456");
+
+        assertThat(exitCode).isEqualTo(1);
+        assertThat(exitCode1).isEqualTo(1);
+        assertThat(outputStreamCaptor.toString().trim()).isEqualTo("The user name or the payload is invalid");
+        assertThat(dataProbe.listUsers()).isEmpty();
     }
 
 }
