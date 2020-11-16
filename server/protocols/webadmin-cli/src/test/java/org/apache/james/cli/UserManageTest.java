@@ -108,4 +108,18 @@ public class UserManageTest {
         assertThat(dataProbe.listUsers()).isEmpty();
     }
 
+    @Test
+    void userDeleteWithAddedUserShouldSucceed(GuiceJamesServer server) throws Exception {
+        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
+        dataProbe = server.getProbe(DataProbeImpl.class);
+        dataProbe.fluent().addDomain("linagora.com")
+            .addUser("hqtran@linagora.com", "123456");
+
+        int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+            "--url", "http://127.0.0.1:" + port.getValue(), "user", "delete", "hqtran@linagora.com");
+
+        assertThat(exitCode).isEqualTo(0);
+        assertThat(dataProbe.listUsers()).isEmpty();
+    }
+
 }
