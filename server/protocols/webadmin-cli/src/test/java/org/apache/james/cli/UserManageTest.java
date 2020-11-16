@@ -123,6 +123,18 @@ public class UserManageTest {
     }
 
     @Test
+    void userDeleteWithNonExistingUserShouldSucceed(GuiceJamesServer server) throws Exception {
+        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
+        dataProbe = server.getProbe(DataProbeImpl.class);
+
+        int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+            "--url", "http://127.0.0.1:" + port.getValue(), "user", "delete", "hqtran@linagora.com");
+
+        assertThat(exitCode).isEqualTo(0);
+        assertThat(dataProbe.listUsers()).doesNotContain("hqtran@linagora.com");
+    }
+
+    @Test
     void userExistCommandWithNonExistingUserShouldFail(GuiceJamesServer server) {
         Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
 
