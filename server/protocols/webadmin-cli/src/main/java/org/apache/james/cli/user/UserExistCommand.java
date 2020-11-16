@@ -19,37 +19,50 @@
 
 package org.apache.james.cli.user;
 
-import java.io.PrintStream;
 import java.util.concurrent.Callable;
 
 import org.apache.james.cli.WebAdminCli;
+import org.apache.james.httpclient.UserClient;
 
+import feign.Feign;
+import feign.Response;
 import picocli.CommandLine;
 
 @CommandLine.Command(
-    name = "user",
-    description = "Manage Users",
-    subcommands = {
-        UserListCommand.class,
-        UserCreateCommand.class,
-        UserDeleteCommand.class,
-        UserExistCommand.class
-    })
-public class UserCommand implements Callable<Integer> {
+    name = "exist",
+    description = "Check if a user exists")
+public class UserExistCommand implements Callable<Integer> {
 
-    protected final WebAdminCli webAdminCli;
-    protected final PrintStream out;
-    protected final PrintStream err;
+    public static final int EXISTED_CODE = 200;
+    public static final int USER_NAME_INVALID_CODE = 400;
+    public static final int NOT_EXISTED_CODE = 404;
 
-    public UserCommand(PrintStream out, WebAdminCli webAdminCli, PrintStream err) {
-        this.out = out;
-        this.webAdminCli = webAdminCli;
-        this.err = err;
-    }
+    @CommandLine.ParentCommand UserCommand userCommand;
+
+    @CommandLine.Parameters String userName;
 
     @Override
     public Integer call() {
-        return WebAdminCli.CLI_FINISHED_SUCCEED;
+        try {
+            UserClient userClient = Feign.builder()
+                .target(UserClient.class, userCommand.webAdminCli.jamesUrl + "/users");
+            Response rs = userClient.doesExist(userName);
+            if (rs.status() == EXISTED_CODE) {
+                userCommand.out.println(userName + " exists");
+                return WebAdminCli.CLI_FINISHED_SUCCEED;
+            } else if (rs.status() == USER_NAME_INVALID_CODE) {
+                userCommand.out.println("The user name is invalid");
+                return WebAdminCli.CLI_FINISHED_SUCCEED;
+            } else if (rs.status() == NOT_EXISTED_CODE) {
+                userCommand.out.println(userName + " does not exist");
+                return WebAdminCli.CLI_FINISHED_SUCCEED;
+            }
+            return WebAdminCli.CLI_FINISHED_FAILED;
+        } catch (Exception e) {
+            e.printStackTrace(userCommand.err);
+            return WebAdminCli.CLI_FINISHED_FAILED;
+        }
     }
 
 }
+

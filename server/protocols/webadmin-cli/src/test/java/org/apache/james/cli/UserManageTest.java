@@ -122,4 +122,40 @@ public class UserManageTest {
         assertThat(dataProbe.listUsers()).isEmpty();
     }
 
+    @Test
+    void userExistCommandWithNonExistingUserShouldFail(GuiceJamesServer server) {
+        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
+
+        int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+            "--url", "http://127.0.0.1:" + port.getValue(), "user", "exist", "hqtran@linagora.com");
+
+        assertThat(exitCode).isEqualTo(0);
+        assertThat(outputStreamCaptor.toString().trim()).isEqualTo("hqtran@linagora.com does not exist");
+    }
+
+    @Test
+    void userExistCommandWithInvalidUserNameShouldFail(GuiceJamesServer server) {
+        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
+
+        int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+            "--url", "http://127.0.0.1:" + port.getValue(), "user", "exist", "hqtran@@linagora.com");
+
+        assertThat(exitCode).isEqualTo(0);
+        assertThat(outputStreamCaptor.toString().trim()).isEqualTo("The user name is invalid");
+    }
+
+    @Test
+    void userExistCommandWithAddedUserShouldSucceed(GuiceJamesServer server) throws Exception {
+        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
+        dataProbe = server.getProbe(DataProbeImpl.class);
+        dataProbe.fluent().addDomain("linagora.com")
+            .addUser("hqtran@linagora.com", "123456");
+
+        int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+            "--url", "http://127.0.0.1:" + port.getValue(), "user", "exist", "hqtran@linagora.com");
+
+        assertThat(exitCode).isEqualTo(0);
+        assertThat(outputStreamCaptor.toString().trim()).isEqualTo("hqtran@linagora.com exists");
+    }
+
 }
