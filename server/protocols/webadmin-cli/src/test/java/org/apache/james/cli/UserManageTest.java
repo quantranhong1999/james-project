@@ -141,7 +141,15 @@ public class UserManageTest {
             "--url", "http://127.0.0.1:" + port.getValue(), "user", "exist", "hqtran@@linagora.com");
 
         assertThat(exitCode).isEqualTo(0);
-        assertThat(outputStreamCaptor.toString().trim()).isEqualTo("The user name is invalid");
+        assertThat(outputStreamCaptor.toString().trim()).isEqualTo("The user name is invalid.\n" +
+            "A user has two attributes: username and password. A valid user should satisfy these criteria:\n" +
+            "-  username and password cannot be null or empty\n" +
+            "-  username should not be longer than 255 characters\n" +
+            "-  username can not contain '/'\n" +
+            "-  username can not contain multiple domain delimiter('@')\n" +
+            "-  A username can have only a local part when virtualHosting is disabled. E.g.'myUser'\n" +
+            "-  When virtualHosting is enabled, a username should have a domain part, and the domain part " +
+            "should be concatenated after a domain delimiter('@'). E.g. 'myuser@james.org'");
     }
 
     @Test
