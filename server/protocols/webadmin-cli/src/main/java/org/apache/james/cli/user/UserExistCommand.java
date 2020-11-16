@@ -60,7 +60,7 @@ public class UserExistCommand implements Callable<Integer> {
                     "-  A username can have only a local part when virtualHosting is disabled. E.g.'myUser'\n" +
                     "-  When virtualHosting is enabled, a username should have a domain part, and the domain part " +
                     "should be concatenated after a domain delimiter('@'). E.g. 'myuser@james.org'");
-                return WebAdminCli.CLI_FINISHED_SUCCEED;
+                return WebAdminCli.CLI_FINISHED_FAILED;
             } else if (rs.status() == NOT_EXISTED_CODE) {
                 userCommand.out.println(userName + " does not exist");
                 return WebAdminCli.CLI_FINISHED_SUCCEED;

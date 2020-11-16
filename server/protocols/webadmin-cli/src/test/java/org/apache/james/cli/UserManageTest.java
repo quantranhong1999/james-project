@@ -140,7 +140,7 @@ public class UserManageTest {
         int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
             "--url", "http://127.0.0.1:" + port.getValue(), "user", "exist", "hqtran@@linagora.com");
 
-        assertThat(exitCode).isEqualTo(0);
+        assertThat(exitCode).isEqualTo(1);
         assertThat(outputStreamCaptor.toString().trim()).isEqualTo("The user name is invalid.\n" +
             "A user has two attributes: username and password. A valid user should satisfy these criteria:\n" +
             "-  username and password cannot be null or empty\n" +
