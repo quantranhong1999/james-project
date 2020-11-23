@@ -30,7 +30,25 @@ $ ./james-cli --url http://127.0.0.1:9999 domain list
 ```
 
 The above command lists all domain names available on domain route at address http://127.0.0.1:9999. 
-It does not require any argument to execute. Options --url are optional. Without it, the default value is http://127.0.0.1:8000.
+It does not require any argument to execute. 
+
+#### Options are optional:
+
+--url : Without it, the default value is http://127.0.0.1:8000.
+
+When James server's jwt setting is enabled, jwt options are required:
+
+--jwt-token : pass the jwt token directly as plain text. E.g: 
+```
+$ ./james-cli --url http://127.0.0.1:8000 --jwt-token eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJlc24iLCJhZG1pbiI6dHJ1ZSwiaWF0IjoxNjA0Mjg3OTU3fQ.IY3AWg9lQE4muXg8iRu1nbluTm786_6aLcoEylCGcbtGcEOp81Neani1-_17xGp2aF6kxBJva0_f_ADUplhfirGXwoxM8evcsdmQBhNGDfa-oXT_a-dd6n7MMPweGOFGhjxnTRvNHpyqDcfNuGGGcB8OfzOsN5epWNkhlivk2OSuY8vR8fHB9Es1Oiv1i8D5H93-K5IXParVLpAtj7uLZT9b7G-kjxlQagApH8USx6JlqIjMwhvM--79SrzPKZ2AtM59NfDT4g6GPaMNntQvXr06Xu3Leys97cot2rsXNfXY1OohorXiYiZ66-eMRcQ7pHF-NyS6dlg87rnMQlpKHw domain list
+```
+Commands with valid token with admin=true claim should pass James's authentication.
+
+--jwt-from-file : pass the jwt token through a file (such as token.jwt). E.g:
+```
+$ ./james-cli --url http://127.0.0.1:8000 --jwt-from-file token.jwt domain list
+```
+
 As for other commands, arguments might be required after the sub-command (ACTION such as list, add and remove).
 
 Note: the command line before ENTITY will be documented as {cli}.
