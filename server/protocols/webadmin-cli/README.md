@@ -32,7 +32,7 @@ $ ./james-cli --url http://127.0.0.1:9999 domain list
 The above command lists all domain names available on domain route at address http://127.0.0.1:9999. 
 It does not require any argument to execute. 
 
-Options are optional:
+The following options can be used:
 
 --url : Without it, the default value is http://127.0.0.1:8000.
 
