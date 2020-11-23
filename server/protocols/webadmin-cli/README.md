@@ -191,7 +191,7 @@ Resource name mailboxNameToBeDeleted should not be empty
 ### Delete all mailboxes of a user
 
 ```
-{cli} mailbox delete <usernameToBeUsed>
+{cli} mailbox delete <usernameToBeUsed> --allMailboxes
 ```
 
 Resource name usernameToBeUsed should be an existing user
@@ -207,7 +207,7 @@ Resource name usernameToBeUsed should be an existing user
 ### Reindex a user mailboxes
 
 ```
-{cli} mailbox reindex --username <usernameToBeUsed>
+{cli} mailbox reindex --user <usernameToBeUsed>
 ```
 
 Will schedule a task for reIndexing all the mails in “usernameToBeUsed” mailboxes.
@@ -217,7 +217,7 @@ Resource name usernameToBeUsed should be an existing user
 ### Reindex all users mailboxes
 
 ```
-{cli} mailbox reindex
+{cli} mailbox reindex --allUser
 ```
 
 Will schedule a task for reIndexing all the mails stored on this James server.
