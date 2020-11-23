@@ -23,7 +23,12 @@ import java.io.PrintStream;
 import java.util.concurrent.Callable;
 
 import org.apache.james.cli.WebAdminCli;
+import org.apache.james.httpclient.DomainClient;
+import org.apache.james.httpclient.FeignClientFactory;
+import org.apache.james.httpclient.JwtToken;
 
+import feign.Feign;
+import feign.jackson.JacksonDecoder;
 import picocli.CommandLine;
 
 @CommandLine.Command(
@@ -50,6 +55,15 @@ public class DomainCommand implements Callable<Integer> {
     @Override
     public Integer call() {
         return WebAdminCli.CLI_FINISHED_SUCCEED;
+    }
+
+    public Feign.Builder feignClientFactory() {
+        return new FeignClientFactory(new JwtToken(webAdminCli.jwt)).builder()
+            .decoder(new JacksonDecoder());
+    }
+
+    public DomainClient fullyQualifiedURL(String partOfUrl) {
+        return feignClientFactory().target(DomainClient.class, webAdminCli.jamesUrl + partOfUrl);
     }
 
 }

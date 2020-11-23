@@ -22,12 +22,10 @@ package org.apache.james.cli.user;
 import java.util.concurrent.Callable;
 
 import org.apache.james.cli.WebAdminCli;
-import org.apache.james.httpclient.FeignClientFactory;
 import org.apache.james.httpclient.UserClient;
 import org.apache.james.httpclient.model.UserPassword;
 
 import feign.Response;
-import feign.jackson.JacksonEncoder;
 import picocli.CommandLine;
 
 @CommandLine.Command(
@@ -49,10 +47,7 @@ public class UserCreateCommand implements Callable<Integer> {
     @Override
     public Integer call() {
         try {
-            UserClient userClient = new FeignClientFactory(userCommand.webAdminCli.jwt)
-                .builder()
-                .encoder(new JacksonEncoder())
-                .target(UserClient.class, userCommand.webAdminCli.jamesUrl + "/users");
+            UserClient userClient = userCommand.fullyQualifiedURL("/users");
             Response rs = userClient.createAUser(userName, new UserPassword(new String(password)));
             if (rs.status() == CREATED_CODE) {
                 userCommand.out.println("The user was created successfully");

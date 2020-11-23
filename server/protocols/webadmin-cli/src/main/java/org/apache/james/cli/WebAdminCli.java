@@ -42,7 +42,7 @@ public class WebAdminCli implements Callable<Integer> {
     String jamesUrl;
 
     public @CommandLine.Option(
-        names = "--jwt",
+        names = "--jwt-token",
         description = "Authentication Token")
     String jwt;
 

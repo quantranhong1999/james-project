@@ -22,7 +22,6 @@ package org.apache.james.cli.user;
 import java.util.concurrent.Callable;
 
 import org.apache.james.cli.WebAdminCli;
-import org.apache.james.httpclient.FeignClientFactory;
 import org.apache.james.httpclient.UserClient;
 
 import feign.Response;
@@ -44,9 +43,7 @@ public class UserExistCommand implements Callable<Integer> {
     @Override
     public Integer call() {
         try {
-            UserClient userClient = new FeignClientFactory(userCommand.webAdminCli.jwt)
-                .builder()
-                .target(UserClient.class, userCommand.webAdminCli.jamesUrl + "/users");
+            UserClient userClient = userCommand.fullyQualifiedURL("/users");
             Response rs = userClient.doesExist(userName);
             if (rs.status() == EXISTED_CODE) {
                 userCommand.out.println(userName + " exists");

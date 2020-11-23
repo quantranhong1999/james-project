@@ -19,25 +19,27 @@
 
 package org.apache.james.httpclient;
 
+import java.util.Optional;
+
 import feign.Feign;
 
 public class FeignClientFactory {
-    // Some JWT related fields here!
-    private String jwt;
 
-    public FeignClientFactory(String jwt) {
-        this.jwt = jwt;
+    private final JwtToken jwtToken;
+
+    public FeignClientFactory(JwtToken jwtToken) {
+        this.jwtToken = jwtToken;
     }
 
     public Feign.Builder builder() {
-        if (this.jwt == null) {
+        Optional<String> jwtTokenString = Optional.ofNullable(jwtToken.getJwtTokenString());
+        if (jwtTokenString.isEmpty()) {
             return Feign.builder();
         } else {
             return Feign.builder()
-                // .requestInterceptor()
-                // JWT stuff (Bearer Authorization header)
-                .requestInterceptor(requestTemplate -> requestTemplate.header("Authorization", "Bearer " + jwt));
+                .requestInterceptor(requestTemplate -> requestTemplate.header("Authorization", "Bearer " + jwtTokenString.get()));
         }
     }
+
 
 }

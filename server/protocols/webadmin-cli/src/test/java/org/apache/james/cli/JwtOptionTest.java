@@ -79,31 +79,30 @@ public class JwtOptionTest {
     private DataProbeImpl dataProbe;
 
     @Test
-    void jwtAuthenticationWithValidTokenShouldSucceed(GuiceJamesServer server) throws Exception {
+    void jwtAuthenticationWithValidTokenAdminTrueShouldSucceed(GuiceJamesServer server) throws Exception {
         Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
         dataProbe = server.getProbe(DataProbeImpl.class);
 
         int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
-            "--url", "http://127.0.0.1:" + port.getValue(), "--jwt", VALID_TOKEN_ADMIN_TRUE, "domain", "create", "linagora.com");
+            "--url", "http://127.0.0.1:" + port.getValue(), "--jwt-token", VALID_TOKEN_ADMIN_TRUE, "domain", "create", "linagora.com");
 
         assertThat(exitCode).isEqualTo(0);
         assertThat(dataProbe.listDomains()).contains("linagora.com");
     }
 
     @Test
-    void jwtAuthenticationWithInvalidTokenShouldRejectRequests(GuiceJamesServer server) throws Exception {
+    void jwtAuthenticationWithValidTokenAdminFalseShouldRejectRequests(GuiceJamesServer server) {
         Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
         dataProbe = server.getProbe(DataProbeImpl.class);
 
         int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
-            "--url", "http://127.0.0.1:" + port.getValue(), "--jwt", VALID_TOKEN_ADMIN_FALSE, "domain", "create", "linagora.com");
+            "--url", "http://127.0.0.1:" + port.getValue(), "--jwt-token", VALID_TOKEN_ADMIN_FALSE, "domain", "create", "linagora.com");
 
         assertThat(exitCode).isEqualTo(1);
-        assertThat(dataProbe.listDomains()).containsOnly("localhost");
     }
 
     @Test
-    void jwtAuthenticationWithNonTokenShouldRejectRequests(GuiceJamesServer server) throws Exception {
+    void jwtAuthenticationWithNonTokenShouldRejectRequests(GuiceJamesServer server) {
         Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
         dataProbe = server.getProbe(DataProbeImpl.class);
 
@@ -111,7 +110,6 @@ public class JwtOptionTest {
             "--url", "http://127.0.0.1:" + port.getValue(), "domain", "create", "linagora.com");
 
         assertThat(exitCode).isEqualTo(1);
-        assertThat(dataProbe.listDomains()).containsOnly("localhost");
     }
 
 }

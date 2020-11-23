@@ -17,41 +17,18 @@
  * under the License.                                             *
  ******************************************************************/
 
-package org.apache.james.cli.user;
+package org.apache.james.httpclient;
 
-import java.util.concurrent.Callable;
+public class JwtToken {
 
-import org.apache.james.cli.WebAdminCli;
-import org.apache.james.httpclient.UserClient;
+    private final String jwtTokenString;
 
-import feign.Response;
-import picocli.CommandLine;
+    public JwtToken(String jwtTokenString) {
+        this.jwtTokenString = jwtTokenString;
+    }
 
-@CommandLine.Command(
-    name = "delete",
-    description = "Delete a user")
-public class UserDeleteCommand implements Callable<Integer> {
-
-    public static final int DELETED_CODE = 204;
-
-    @CommandLine.ParentCommand UserCommand userCommand;
-
-    @CommandLine.Parameters String userName;
-
-    @Override
-    public Integer call() {
-        try {
-            UserClient userClient = userCommand.fullyQualifiedURL("/users");
-            Response rs = userClient.deleteAUser(userName);
-            if (rs.status() == DELETED_CODE) {
-                return WebAdminCli.CLI_FINISHED_SUCCEED;
-            } else {
-                return WebAdminCli.CLI_FINISHED_FAILED;
-            }
-        } catch (Exception e) {
-            e.printStackTrace(userCommand.err);
-            return WebAdminCli.CLI_FINISHED_FAILED;
-        }
+    public String getJwtTokenString() {
+        return this.jwtTokenString;
     }
 
 }

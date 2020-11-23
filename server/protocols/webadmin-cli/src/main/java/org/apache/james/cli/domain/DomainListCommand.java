@@ -23,9 +23,7 @@ import java.util.concurrent.Callable;
 
 import org.apache.james.cli.WebAdminCli;
 import org.apache.james.httpclient.DomainClient;
-import org.apache.james.httpclient.FeignClientFactory;
 
-import feign.jackson.JacksonDecoder;
 import picocli.CommandLine;
 
 @CommandLine.Command(
@@ -38,10 +36,7 @@ public class DomainListCommand implements Callable<Integer> {
     @Override
     public Integer call() {
         try {
-            DomainClient domainClient = new FeignClientFactory(domainCommand.webAdminCli.jwt)
-                .builder()
-                .decoder(new JacksonDecoder())
-                .target(DomainClient.class, domainCommand.webAdminCli.jamesUrl + "/domains");
+            DomainClient domainClient = domainCommand.fullyQualifiedURL("/domains");
             domainClient.getDomainList().forEach(domainCommand.out::println);
             return WebAdminCli.CLI_FINISHED_SUCCEED;
         } catch (Exception e) {
