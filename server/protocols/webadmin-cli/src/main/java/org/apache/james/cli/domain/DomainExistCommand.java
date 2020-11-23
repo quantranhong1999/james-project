@@ -23,8 +23,8 @@ import java.util.concurrent.Callable;
 
 import org.apache.james.cli.WebAdminCli;
 import org.apache.james.httpclient.DomainClient;
+import org.apache.james.httpclient.FeignClientFactory;
 
-import feign.Feign;
 import feign.Response;
 import picocli.CommandLine;
 
@@ -44,7 +44,8 @@ public class DomainExistCommand implements Callable<Integer> {
     @Override
     public Integer call() {
         try {
-            DomainClient domainClient = Feign.builder()
+            DomainClient domainClient = new FeignClientFactory(domainCommand.webAdminCli.jwt)
+                .builder()
                 .target(DomainClient.class, domainCommand.webAdminCli.jamesUrl + "/domains");
             Response rs = domainClient.doesExist(domainName);
             if (rs.status() == EXISTED_CODE) {

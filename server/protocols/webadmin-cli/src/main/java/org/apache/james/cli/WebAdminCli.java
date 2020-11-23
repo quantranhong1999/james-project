@@ -41,6 +41,11 @@ public class WebAdminCli implements Callable<Integer> {
         defaultValue = "http://127.0.0.1:8000")
     String jamesUrl;
 
+    public @CommandLine.Option(
+        names = "--jwt",
+        description = "Authentication Token")
+    String jwt;
+
     @Override
     public Integer call() {
         return CLI_FINISHED_SUCCEED;

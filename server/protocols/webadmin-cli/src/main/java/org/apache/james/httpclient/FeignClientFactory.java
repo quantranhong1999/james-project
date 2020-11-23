@@ -17,44 +17,26 @@
  * under the License.                                             *
  ******************************************************************/
 
-package org.apache.james.cli.domain;
+package org.apache.james.httpclient;
 
-import java.util.concurrent.Callable;
+import feign.Feign;
 
-import org.apache.james.cli.WebAdminCli;
-import org.apache.james.httpclient.DomainClient;
-import org.apache.james.httpclient.FeignClientFactory;
+public class FeignClientFactory {
+    // Some JWT related fields here!
+    private String jwt;
 
-import feign.Response;
-import picocli.CommandLine;
+    public FeignClientFactory(String jwt) {
+        this.jwt = jwt;
+    }
 
-@CommandLine.Command(
-    name = "delete",
-    description = "Delete a domain")
-public class DomainDeleteCommand implements Callable<Integer> {
-
-    public static final int DELETED_CODE = 204;
-
-    @CommandLine.ParentCommand DomainCommand domainCommand;
-
-    @CommandLine.Parameters
-    String domainName;
-
-    @Override
-    public Integer call() {
-        try {
-            DomainClient domainClient = new FeignClientFactory(domainCommand.webAdminCli.jwt)
-                .builder()
-                .target(DomainClient.class, domainCommand.webAdminCli.jamesUrl + "/domains");
-            Response rs = domainClient.deleteADomain(domainName);
-            if (rs.status() == DELETED_CODE) {
-                return WebAdminCli.CLI_FINISHED_SUCCEED;
-            } else {
-                return WebAdminCli.CLI_FINISHED_FAILED;
-            }
-        } catch (Exception e) {
-            e.printStackTrace(domainCommand.err);
-            return WebAdminCli.CLI_FINISHED_FAILED;
+    public Feign.Builder builder() {
+        if (this.jwt == null) {
+            return Feign.builder();
+        } else {
+            return Feign.builder()
+                // .requestInterceptor()
+                // JWT stuff (Bearer Authorization header)
+                .requestInterceptor(requestTemplate -> requestTemplate.header("Authorization", "Bearer " + jwt));
         }
     }
 
