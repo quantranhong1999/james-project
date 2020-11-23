@@ -236,14 +236,14 @@ Note that email addresses are restricted to ASCII character set. Mail addresses 
 
 Show all configured domain mappings
 ```
-{cli} domain-mapping list
+{cli} domain-mapping listAll
 ```
 
 ### Listing all destination domains for a source domain
 
 With sourceDomain.tld as the value passed to fromDomain resource name, this command will show all destination domains configured to that domain
 ```
-{cli} domain-mapping list --sourcedomain <sourceDomain.tld>
+{cli} domain-mapping list <sourceDomain.tld>
 ```
 
 ### Adding a domain mapping
