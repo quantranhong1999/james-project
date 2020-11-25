@@ -25,8 +25,8 @@ public class JwtToken {
 
     private final Optional<String> jwtTokenString;
 
-    public JwtToken(String jwtTokenString) {
-        this.jwtTokenString = Optional.ofNullable(jwtTokenString);
+    public JwtToken(Optional<String> jwtTokenString) {
+        this.jwtTokenString = jwtTokenString;
     }
 
     public Optional<String> getJwtTokenString() {

@@ -19,27 +19,21 @@
 
 package org.apache.james.httpclient;
 
-import java.util.Optional;
-
 import feign.Feign;
 
 public class FeignClientFactory {
 
     private final JwtToken jwtToken;
 
-    private Feign.Builder feignClient;
-
     public FeignClientFactory(JwtToken jwtToken) {
         this.jwtToken = jwtToken;
     }
 
     public Feign.Builder builder() {
-        Optional<String> jwtTokenStringOptional = jwtToken.getJwtTokenString();
-        jwtTokenStringOptional.ifPresentOrElse(
-            (jwtTokenString) -> feignClient = Feign.builder()
-                .requestInterceptor(requestTemplate -> requestTemplate.header("Authorization", "Bearer " + jwtTokenString)),
-            () -> feignClient = Feign.builder());
-        return feignClient;
+        return jwtToken.getJwtTokenString()
+            .map(token -> Feign.builder()
+                          .requestInterceptor(requestTemplate -> requestTemplate.header("Authorization", "Bearer " + token)))
+            .orElse(Feign.builder());
     }
 
 }

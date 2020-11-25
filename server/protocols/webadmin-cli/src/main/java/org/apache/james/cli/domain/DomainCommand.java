@@ -20,6 +20,7 @@
 package org.apache.james.cli.domain;
 
 import java.io.PrintStream;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 
 import org.apache.james.cli.WebAdminCli;
@@ -58,7 +59,7 @@ public class DomainCommand implements Callable<Integer> {
     }
 
     public Feign.Builder feignClientFactory() {
-        return new FeignClientFactory(new JwtToken(webAdminCli.jwt)).builder()
+        return new FeignClientFactory(new JwtToken(Optional.ofNullable(webAdminCli.jwt))).builder()
             .decoder(new JacksonDecoder());
     }
 
