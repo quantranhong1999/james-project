@@ -27,19 +27,19 @@ public class FeignClientFactory {
 
     private final JwtToken jwtToken;
 
+    private Feign.Builder feignClient;
+
     public FeignClientFactory(JwtToken jwtToken) {
         this.jwtToken = jwtToken;
     }
 
     public Feign.Builder builder() {
-        Optional<String> jwtTokenString = Optional.ofNullable(jwtToken.getJwtTokenString());
-        if (jwtTokenString.isEmpty()) {
-            return Feign.builder();
-        } else {
-            return Feign.builder()
-                .requestInterceptor(requestTemplate -> requestTemplate.header("Authorization", "Bearer " + jwtTokenString.get()));
-        }
+        Optional<String> jwtTokenStringOptional = jwtToken.getJwtTokenString();
+        jwtTokenStringOptional.ifPresentOrElse(
+            (jwtTokenString) -> feignClient = Feign.builder()
+                .requestInterceptor(requestTemplate -> requestTemplate.header("Authorization", "Bearer " + jwtTokenString)),
+            () -> feignClient = Feign.builder());
+        return feignClient;
     }
-
 
 }

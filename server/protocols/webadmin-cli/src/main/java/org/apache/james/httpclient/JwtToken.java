@@ -19,15 +19,17 @@
 
 package org.apache.james.httpclient;
 
+import java.util.Optional;
+
 public class JwtToken {
 
-    private final String jwtTokenString;
+    private final Optional<String> jwtTokenString;
 
     public JwtToken(String jwtTokenString) {
-        this.jwtTokenString = jwtTokenString;
+        this.jwtTokenString = Optional.ofNullable(jwtTokenString);
     }
 
-    public String getJwtTokenString() {
+    public Optional<String> getJwtTokenString() {
         return this.jwtTokenString;
     }
 
