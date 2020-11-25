@@ -73,6 +73,10 @@ public class JwtOptionTest {
         "xtedOK2JnQZn7t9sUzSrcyjWverm7gZkPptkIVoS8TsEeMMME5vFXe_nqkEG69q3kuBUm_33tbR5oNS0ZGZKlG9r41lHBjyf9J1xN4UYV8n866d" +
         "a7RPPCzshIWUtO0q9T2umWTnp-6OnOdBCkndrZmRR6pPxsD5YL0_77Wq8KT_5__fGA";
 
+    private static final String PATH_OF_VALID_TOKEN_ADMIN_TRUE_FILE = "src/test/resources/validtokenadmintrue.jwt";
+    private static final String PATH_OF_VALID_TOKEN_ADMIN_FALSE_FILE = "src/test/resources/validtokenadminfalse.jwt";
+    private static final String PATH_OF_INVALID_JWT_FILE = "src/test/resources/keystore";
+
     private final ByteArrayOutputStream outputStreamCaptor = new ByteArrayOutputStream();
     private final ByteArrayOutputStream errorStreamCaptor = new ByteArrayOutputStream();
 
@@ -108,6 +112,52 @@ public class JwtOptionTest {
 
         int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
             "--url", "http://127.0.0.1:" + port.getValue(), "domain", "create", "linagora.com");
+
+        assertThat(exitCode).isEqualTo(1);
+    }
+
+    @Test
+    void jwtFromFileWithValidFilePathAndValidTokenAdminTrueShouldSucceed(GuiceJamesServer server) throws Exception {
+        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
+        dataProbe = server.getProbe(DataProbeImpl.class);
+
+        int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+            "--url", "http://127.0.0.1:" + port.getValue(), "--jwt-from-file", PATH_OF_VALID_TOKEN_ADMIN_TRUE_FILE, "domain", "create", "linagora.com");
+
+        assertThat(exitCode).isEqualTo(0);
+        assertThat(dataProbe.listDomains()).contains("linagora.com");
+    }
+
+    @Test
+    void jwtFromFileWithValidFilePathAndValidTokenAdminFalseShouldRejectRequests(GuiceJamesServer server) {
+        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
+        dataProbe = server.getProbe(DataProbeImpl.class);
+
+        int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+            "--url", "http://127.0.0.1:" + port.getValue(), "--jwt-from-file", PATH_OF_VALID_TOKEN_ADMIN_FALSE_FILE, "domain", "create", "linagora.com");
+
+        assertThat(exitCode).isEqualTo(1);
+    }
+
+    @Test
+    void jwtFromFileWithNonExistingFileShouldThrowFileNotFoundException(GuiceJamesServer server) {
+        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
+        dataProbe = server.getProbe(DataProbeImpl.class);
+
+        int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+            "--url", "http://127.0.0.1:" + port.getValue(), "--jwt-from-file", "", "domain", "create", "linagora.com");
+
+        assertThat(exitCode).isEqualTo(1);
+        assertThat(errorStreamCaptor.toString()).contains("FileNotFoundException");
+    }
+
+    @Test
+    void jwtFromFileWithInvalidFileShouldRejectRequests(GuiceJamesServer server) {
+        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
+        dataProbe = server.getProbe(DataProbeImpl.class);
+
+        int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+            "--url", "http://127.0.0.1:" + port.getValue(), "--jwt-from-file", PATH_OF_INVALID_JWT_FILE, "domain", "create", "linagora.com");
 
         assertThat(exitCode).isEqualTo(1);
     }

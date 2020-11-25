@@ -19,18 +19,40 @@
 
 package org.apache.james.httpclient;
 
+import java.io.File;
+import java.io.PrintStream;
 import java.util.Optional;
+import java.util.Scanner;
 
 public class JwtToken {
 
     private final Optional<String> jwtTokenString;
 
-    public JwtToken(Optional<String> jwtTokenString) {
-        this.jwtTokenString = jwtTokenString;
+    public JwtToken(Optional<String> jwtTokenString, Optional<String> jwtFilePath, PrintStream err) {
+        this.jwtTokenString = handleJwtOptions(jwtTokenString, jwtFilePath, err);
     }
 
     public Optional<String> getJwtTokenString() {
         return this.jwtTokenString;
+    }
+
+    private Optional<String> handleJwtOptions(Optional<String> jwtTokenString, Optional<String> jwtFilePath, PrintStream err) {
+        return jwtFilePath.map(path -> {
+                try {
+                    File myObj = new File(jwtFilePath.get());
+                    Scanner myReader = new Scanner(myObj);
+                    StringBuilder data = new StringBuilder();
+                    while (myReader.hasNextLine()) {
+                        data.append(myReader.nextLine());
+                    }
+                    myReader.close();
+                    return Optional.of(data.toString());
+                } catch (Exception e) {
+                    e.printStackTrace(err);
+                    return jwtTokenString;
+                }
+        })
+            .orElse(jwtTokenString);
     }
 
 }

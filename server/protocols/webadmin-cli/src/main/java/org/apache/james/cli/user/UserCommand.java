@@ -20,17 +20,11 @@
 package org.apache.james.cli.user;
 
 import java.io.PrintStream;
-import java.util.Optional;
 import java.util.concurrent.Callable;
 
 import org.apache.james.cli.WebAdminCli;
-import org.apache.james.httpclient.FeignClientFactory;
-import org.apache.james.httpclient.JwtToken;
 import org.apache.james.httpclient.UserClient;
 
-import feign.Feign;
-import feign.jackson.JacksonDecoder;
-import feign.jackson.JacksonEncoder;
 import picocli.CommandLine;
 
 @CommandLine.Command(
@@ -59,14 +53,8 @@ public class UserCommand implements Callable<Integer> {
         return WebAdminCli.CLI_FINISHED_SUCCEED;
     }
 
-    public Feign.Builder feignClientFactory() {
-        return new FeignClientFactory(new JwtToken(Optional.ofNullable(webAdminCli.jwt))).builder()
-            .decoder(new JacksonDecoder())
-            .encoder(new JacksonEncoder());
-    }
-
     public UserClient fullyQualifiedURL(String partOfUrl) {
-        return feignClientFactory().target(UserClient.class, webAdminCli.jamesUrl + partOfUrl);
+        return webAdminCli.feignClientFactory(err).target(UserClient.class, webAdminCli.jamesUrl + partOfUrl);
     }
 
 }
