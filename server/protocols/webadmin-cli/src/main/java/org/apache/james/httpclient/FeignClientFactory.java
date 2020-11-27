@@ -40,15 +40,15 @@ public class FeignClientFactory {
     private Feign.Builder jwtOptionsHandler() {
         return jwtToken.jwtTokenString
             .map(tokenString -> jwtToken.jwtFilePath
-                .map(this::jwtTokenAndJwtFileAreBothPresentHandler)
+                .map(tokenFile -> jwtTokenAndJwtFileAreBothPresentHandler())
                 .orElse(jwtTokenIsPresentAndJwtFromFileIsNotPresentHandler(tokenString)))
             .orElse(jwtToken.jwtFilePath
                 .map(this::jwtTokenIsNotPresentAndJwtFromFileIsPresentHandler)
                 .orElse(jwtTokenAndJwtFromFileAreNotPresentHandler()));
     }
 
-    private Feign.Builder jwtTokenAndJwtFileAreBothPresentHandler(String tokenFile) {
-        jwtToken.err.println("Invalid authentication with many jwt options at the same time.");
+    private Feign.Builder jwtTokenAndJwtFileAreBothPresentHandler() {
+        jwtToken.err.println("Cannot specify both --jwt-from-file and --jwt-token options.");
         return Feign.builder();
     }
 

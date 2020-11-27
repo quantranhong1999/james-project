@@ -161,7 +161,7 @@ public class JwtOptionTest {
             "--jwt-token", VALID_TOKEN_ADMIN_TRUE, "domain", "list");
 
         assertThat(exitCode).isEqualTo(1);
-        assertThat(errorStreamCaptor.toString()).contains("Invalid authentication with many jwt options at the same time.");
+        assertThat(errorStreamCaptor.toString()).contains("Cannot specify both --jwt-from-file and --jwt-token options.");
     }
 
     @Test
