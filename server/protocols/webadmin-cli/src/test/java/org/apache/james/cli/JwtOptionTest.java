@@ -73,8 +73,8 @@ public class JwtOptionTest {
         "xtedOK2JnQZn7t9sUzSrcyjWverm7gZkPptkIVoS8TsEeMMME5vFXe_nqkEG69q3kuBUm_33tbR5oNS0ZGZKlG9r41lHBjyf9J1xN4UYV8n866d" +
         "a7RPPCzshIWUtO0q9T2umWTnp-6OnOdBCkndrZmRR6pPxsD5YL0_77Wq8KT_5__fGA";
 
-    private static final String PATH_OF_VALID_TOKEN_ADMIN_TRUE_FILE = "src/test/resources/validtokenadmintrue.jwt";
-    private static final String PATH_OF_VALID_TOKEN_ADMIN_FALSE_FILE = "src/test/resources/validtokenadminfalse.jwt";
+    private static final String PATH_OF_VALID_TOKEN_ADMIN_TRUE_FILE = "src/test/resources/valid_token_admin_true.jwt";
+    private static final String PATH_OF_VALID_TOKEN_ADMIN_FALSE_FILE = "src/test/resources/valid_token_admin_false.jwt";
     private static final String PATH_OF_INVALID_JWT_FILE = "src/test/resources/keystore";
 
     private final ByteArrayOutputStream outputStreamCaptor = new ByteArrayOutputStream();
@@ -83,7 +83,7 @@ public class JwtOptionTest {
     private DataProbeImpl dataProbe;
 
     @Test
-    void jwtAuthenticationWithValidTokenAdminTrueShouldSucceed(GuiceJamesServer server) throws Exception {
+    void jwtTokenWithAdminTrueAndNonPresentJwtFileShouldPassAuthentication(GuiceJamesServer server) throws Exception {
         Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
         dataProbe = server.getProbe(DataProbeImpl.class);
 
@@ -95,7 +95,7 @@ public class JwtOptionTest {
     }
 
     @Test
-    void jwtAuthenticationWithValidTokenAdminFalseShouldRejectRequests(GuiceJamesServer server) {
+    void jwtTokenWithAdminFalseAndNonPresentJwtFileShouldRejectRequests(GuiceJamesServer server) {
         Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
         dataProbe = server.getProbe(DataProbeImpl.class);
 
@@ -106,18 +106,7 @@ public class JwtOptionTest {
     }
 
     @Test
-    void jwtAuthenticationWithNonTokenShouldRejectRequests(GuiceJamesServer server) {
-        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
-        dataProbe = server.getProbe(DataProbeImpl.class);
-
-        int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
-            "--url", "http://127.0.0.1:" + port.getValue(), "domain", "create", "linagora.com");
-
-        assertThat(exitCode).isEqualTo(1);
-    }
-
-    @Test
-    void jwtFromFileWithValidFilePathAndValidTokenAdminTrueShouldSucceed(GuiceJamesServer server) throws Exception {
+    void jwtFromFileWithAdminTrueAndNonPresentJwtTokenShouldPassAuthentication(GuiceJamesServer server) throws Exception {
         Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
         dataProbe = server.getProbe(DataProbeImpl.class);
 
@@ -129,7 +118,7 @@ public class JwtOptionTest {
     }
 
     @Test
-    void jwtFromFileWithValidFilePathAndValidTokenAdminFalseShouldRejectRequests(GuiceJamesServer server) {
+    void jwtFromFileWithAdminFalseAndNonPresentJwtTokenShouldRejectRequests(GuiceJamesServer server) {
         Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
         dataProbe = server.getProbe(DataProbeImpl.class);
 
@@ -158,6 +147,30 @@ public class JwtOptionTest {
 
         int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
             "--url", "http://127.0.0.1:" + port.getValue(), "--jwt-from-file", PATH_OF_INVALID_JWT_FILE, "domain", "create", "linagora.com");
+
+        assertThat(exitCode).isEqualTo(1);
+    }
+
+    @Test
+    void jwtTokenAndJwtFileAreBothPresentShouldFailAuthentication(GuiceJamesServer server) {
+        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
+        dataProbe = server.getProbe(DataProbeImpl.class);
+
+        int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+            "--url", "http://127.0.0.1:" + port.getValue(), "--jwt-from-file", PATH_OF_VALID_TOKEN_ADMIN_TRUE_FILE,
+            "--jwt-token", VALID_TOKEN_ADMIN_TRUE, "domain", "list");
+
+        assertThat(exitCode).isEqualTo(1);
+        assertThat(errorStreamCaptor.toString()).contains("Invalid authentication with many jwt options at the same time.");
+    }
+
+    @Test
+    void jwtTokenAndJwtFileAreNotPresentShouldRejectRequests(GuiceJamesServer server) {
+        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
+        dataProbe = server.getProbe(DataProbeImpl.class);
+
+        int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+            "--url", "http://127.0.0.1:" + port.getValue(), "domain", "create", "linagora.com");
 
         assertThat(exitCode).isEqualTo(1);
     }

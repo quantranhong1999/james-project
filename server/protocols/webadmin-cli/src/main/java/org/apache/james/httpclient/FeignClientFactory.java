@@ -19,6 +19,10 @@
 
 package org.apache.james.httpclient;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.util.Scanner;
+
 import feign.Feign;
 
 public class FeignClientFactory {
@@ -30,10 +34,46 @@ public class FeignClientFactory {
     }
 
     public Feign.Builder builder() {
-        return jwtToken.getJwtTokenString()
-            .map(token -> Feign.builder()
-                          .requestInterceptor(requestTemplate -> requestTemplate.header("Authorization", "Bearer " + token)))
-            .orElse(Feign.builder());
+        return jwtOptionsHandler();
+    }
+
+    private Feign.Builder jwtOptionsHandler() {
+        return jwtToken.jwtTokenString
+            .map(tokenString -> jwtToken.jwtFilePath
+                .map(this::jwtTokenAndJwtFileAreBothPresentHandler)
+                .orElse(jwtTokenIsPresentAndJwtFromFileIsNotPresentHandler(tokenString)))
+            .orElse(jwtToken.jwtFilePath
+                .map(this::jwtTokenIsNotPresentAndJwtFromFileIsPresentHandler)
+                .orElse(jwtTokenAndJwtFromFileAreNotPresentHandler()));
+    }
+
+    private Feign.Builder jwtTokenAndJwtFileAreBothPresentHandler(String tokenFile) {
+        jwtToken.err.println("Invalid authentication with many jwt options at the same time.");
+        return Feign.builder();
+    }
+
+    private Feign.Builder jwtTokenIsPresentAndJwtFromFileIsNotPresentHandler(String tokenString) {
+        return Feign.builder()
+            .requestInterceptor(requestTemplate -> requestTemplate.header("Authorization", "Bearer " + tokenString));
+    }
+
+    private Feign.Builder jwtTokenIsNotPresentAndJwtFromFileIsPresentHandler(String tokenFile) {
+        File myObj = new File(tokenFile);
+        try (Scanner myReader = new Scanner(myObj)) {
+            StringBuilder data = new StringBuilder();
+            while (myReader.hasNextLine()) {
+                data.append(myReader.nextLine());
+            }
+            return Feign.builder()
+                .requestInterceptor(requestTemplate -> requestTemplate.header("Authorization", "Bearer " + data.toString()));
+        } catch (FileNotFoundException e) {
+            e.printStackTrace(jwtToken.err);
+            return Feign.builder();
+        }
+    }
+
+    private Feign.Builder jwtTokenAndJwtFromFileAreNotPresentHandler() {
+        return Feign.builder();
     }
 
 }
