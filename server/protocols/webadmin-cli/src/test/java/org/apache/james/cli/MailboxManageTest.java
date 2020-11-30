@@ -95,4 +95,62 @@ public class MailboxManageTest {
             "Resource name usernameToBeUsed should be an existing user.");
     }
 
+    @Test
+    void mailboxExistWithExistedUsernameAndExistedMailboxNameShouldSucceed(GuiceJamesServer server) throws Exception {
+        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
+        dataProbe = server.getProbe(DataProbeImpl.class);
+        dataProbe.fluent().addDomain("linagora.com")
+            .addUser("hqtran@linagora.com", "123456");
+
+        WebAdminCli.executeFluent(new PrintStream(new ByteArrayOutputStream()), new PrintStream(new ByteArrayOutputStream()),
+            "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "create", "hqtran@linagora.com", "INBOX");
+
+        int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+            "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "exist", "hqtran@linagora.com", "INBOX");
+
+        assertThat(exitCode).isEqualTo(0);
+        assertThat(outputStreamCaptor.toString().trim()).isEqualTo("The mailbox exists.");
+    }
+
+    @Test
+    void mailboxExistWithInvalidMailboxNameShouldFail(GuiceJamesServer server) throws Exception {
+        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
+        dataProbe = server.getProbe(DataProbeImpl.class);
+        dataProbe.fluent().addDomain("linagora.com")
+            .addUser("hqtran@linagora.com", "123456");
+
+        int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+            "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "exist", "hqtran@linagora.com", "#INBOX");
+
+        assertThat(exitCode).isEqualTo(1);
+        assertThat(outputStreamCaptor.toString().trim()).isEqualTo("Invalid mailbox name\n" +
+            "Resource name mailboxNameToBeTested should not be empty, nor contain # & % * characters.");
+    }
+
+    @Test
+    void mailboxExistWithExistedUserAndNonExistingMailboxNameShouldFail(GuiceJamesServer server) throws Exception {
+        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
+        dataProbe = server.getProbe(DataProbeImpl.class);
+        dataProbe.fluent().addDomain("linagora.com")
+            .addUser("hqtran@linagora.com", "123456");
+
+        int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+            "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "exist", "hqtran@linagora.com", "INBOX");
+
+        assertThat(exitCode).isEqualTo(0);
+        assertThat(outputStreamCaptor.toString().trim()).isEqualTo("Either the user name or the mailbox does not exist.");
+    }
+
+    @Test
+    void mailboxExistWithNonExistingUserAndNonExistingMailboxNameShouldFail(GuiceJamesServer server) {
+        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
+        dataProbe = server.getProbe(DataProbeImpl.class);
+
+        int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+            "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "exist", "hqtran@linagora.com", "INBOX");
+
+        assertThat(exitCode).isEqualTo(0);
+        assertThat(outputStreamCaptor.toString().trim()).isEqualTo("Either the user name or the mailbox does not exist.");
+    }
+
 }
