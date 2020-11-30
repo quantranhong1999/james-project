@@ -185,4 +185,68 @@ public class MailboxManageTest {
         assertThat(outputStreamCaptor.toString()).isEmpty();
     }
 
+    @Test
+    void mailboxDeleteAParentMailboxWithTwoAddedChildrenMailboxShouldDeleteThemAll(GuiceJamesServer server) throws Exception {
+        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
+        dataProbe = server.getProbe(DataProbeImpl.class);
+        dataProbe.fluent().addDomain("linagora.com")
+            .addUser("hqtran@linagora.com", "123456");
+
+        WebAdminCli.executeFluent(new PrintStream(new ByteArrayOutputStream()), new PrintStream(new ByteArrayOutputStream()),
+            "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "create", "hqtran@linagora.com", "INBOX.1");
+
+        WebAdminCli.executeFluent(new PrintStream(new ByteArrayOutputStream()), new PrintStream(new ByteArrayOutputStream()),
+            "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "create", "hqtran@linagora.com", "INBOX.2");
+
+        int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+            "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "delete", "hqtran@linagora.com", "INBOX");
+
+        WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+                "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "list", "hqtran@linagora.com");
+
+        assertThat(exitCode).isEqualTo(0);
+        assertThat(outputStreamCaptor.toString().trim()).isEqualTo("The mailbox now does not exist on the server.");
+    }
+
+    @Test
+    void mailboxDeleteWithNonExistingUsernameShouldFail(GuiceJamesServer server) throws Exception {
+        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
+        dataProbe = server.getProbe(DataProbeImpl.class);
+        dataProbe.fluent().addDomain("linagora.com");
+
+        int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+                "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "delete", "hqtran@linagora.com", "INBOX");
+
+        assertThat(exitCode).isEqualTo(1);
+        assertThat(errorStreamCaptor.toString()).contains("User does not exist");
+    }
+
+    @Test
+    void mailboxDeleteWithInvalidMailboxNameShouldFail(GuiceJamesServer server) throws Exception {
+        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
+        dataProbe = server.getProbe(DataProbeImpl.class);
+        dataProbe.fluent().addDomain("linagora.com")
+                .addUser("hqtran@linagora.com", "123456");
+
+        int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+                "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "delete", "hqtran@linagora.com", "IN#BOX");
+
+        assertThat(exitCode).isEqualTo(1);
+        assertThat(errorStreamCaptor.toString()).contains("Attempt to delete an invalid mailbox");
+    }
+
+    @Test
+    void mailboxDeleteWithInvalidUsernameShouldFail(GuiceJamesServer server) throws Exception {
+        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
+        dataProbe = server.getProbe(DataProbeImpl.class);
+        dataProbe.fluent().addDomain("linagora.com")
+                .addUser("hqtran@linagora.com", "123456");
+
+        int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+                "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "delete", "hqtr@an@linagora.com", "INBOX");
+
+        assertThat(exitCode).isEqualTo(1);
+        assertThat(errorStreamCaptor.toString()).contains("Attempt to delete an invalid mailbox");
+    }
+
 }
