@@ -33,7 +33,7 @@ import picocli.CommandLine;
 public class MailboxCreateCommand implements Callable<Integer> {
 
     public static final int CREATED_CODE = 204;
-    public static final int INVALID_MAILBOX_NAME_CODE = 400;
+    public static final int BAD_REQUEST_CODE = 400;
     public static final int USERNAME_NOT_EXIST_CODE = 404;
 
     @CommandLine.ParentCommand MailboxCommand mailboxCommand;
@@ -52,13 +52,11 @@ public class MailboxCreateCommand implements Callable<Integer> {
             if (rs.status() == CREATED_CODE) {
                 mailboxCommand.out.println("The mailbox was created successfully.");
                 return WebAdminCli.CLI_FINISHED_SUCCEED;
-            } else if (rs.status() == INVALID_MAILBOX_NAME_CODE) {
-                mailboxCommand.out.println("Invalid mailbox name.\n" +
-                    "Resource name mailboxNameToBeCreated should not be empty, nor contain # & % * characters.");
+            } else if (rs.status() == BAD_REQUEST_CODE) {
+                mailboxCommand.err.println(rs.body());
                 return WebAdminCli.CLI_FINISHED_FAILED;
             } else if (rs.status() == USERNAME_NOT_EXIST_CODE) {
-                mailboxCommand.out.println("The user name does not exist.\n" +
-                    "Resource name usernameToBeUsed should be an existing user.");
+                mailboxCommand.err.println(rs.body());
                 return WebAdminCli.CLI_FINISHED_FAILED;
             }
             return WebAdminCli.CLI_FINISHED_FAILED;

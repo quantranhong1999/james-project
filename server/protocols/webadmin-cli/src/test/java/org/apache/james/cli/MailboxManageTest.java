@@ -79,8 +79,7 @@ public class MailboxManageTest {
             "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "create", "hqtran@linagora.com", "#&%*INBOX");
 
         assertThat(exitCode).isEqualTo(1);
-        assertThat(outputStreamCaptor.toString().trim()).isEqualTo("Invalid mailbox name.\n" +
-            "Resource name mailboxNameToBeCreated should not be empty, nor contain # & % * characters.");
+        assertThat(errorStreamCaptor.toString()).contains("400");
     }
 
     @Test
@@ -91,8 +90,7 @@ public class MailboxManageTest {
             "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "create", "hqtran@linagora.com", "INBOX");
 
         assertThat(exitCode).isEqualTo(1);
-        assertThat(outputStreamCaptor.toString().trim()).isEqualTo("The user name does not exist.\n" +
-            "Resource name usernameToBeUsed should be an existing user.");
+        assertThat(errorStreamCaptor.toString()).contains("404");
     }
 
     @Test
