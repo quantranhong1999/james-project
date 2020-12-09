@@ -438,6 +438,7 @@ class UserRoutesTest {
                 doThrow(new UsersRepositoryException("message")).when(usersRepository).updateUser(any());
 
                 given()
+                        .queryParam("force", true)
                     .body("{\"password\":\"password\"}")
                 .when()
                     .put(USERNAME_WITH_DOMAIN.asString())
@@ -497,6 +498,7 @@ class UserRoutesTest {
                 doThrow(new RuntimeException()).when(usersRepository).updateUser(any());
 
                 given()
+                        .queryParam("force", true)
                     .body("{\"password\":\"password\"}")
                 .when()
                     .put(USERNAME_WITH_DOMAIN.asString())
@@ -542,7 +544,7 @@ class UserRoutesTest {
         }
 
         @Test
-        void puttingWithDomainPartInUsernameTwoTimesShouldBeAllowed() {
+        void puttingWithDomainPartInUsernameTwoTimesShouldNotBeAllowed() {
             // Given
             with()
                 .body("{\"password\":\"password\"}")
@@ -554,7 +556,7 @@ class UserRoutesTest {
             .when()
                 .put(USERNAME_WITH_DOMAIN.asString())
             .then()
-                .statusCode(HttpStatus.NO_CONTENT_204);
+                .statusCode(HttpStatus.CONFLICT_409);
 
             // Then
             List<Map<String, String>> users =
@@ -731,7 +733,7 @@ class UserRoutesTest {
         }
 
         @Test
-        void puttingWithoutDomainPartInUsernameTwoTimesShouldBeAllowed() {
+        void puttingWithoutDomainPartInUsernameTwoTimesShouldNotBeAllowed() {
             // Given
             with()
                 .body("{\"password\":\"password\"}")
@@ -743,7 +745,7 @@ class UserRoutesTest {
             .when()
                 .put(USERNAME_WITHOUT_DOMAIN.asString())
             .then()
-                .statusCode(HttpStatus.NO_CONTENT_204);
+                .statusCode(HttpStatus.CONFLICT_409);
 
             // Then
             List<Map<String, String>> users =

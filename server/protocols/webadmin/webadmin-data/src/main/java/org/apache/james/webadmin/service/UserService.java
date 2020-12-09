@@ -26,6 +26,7 @@ import java.util.stream.Stream;
 import javax.inject.Inject;
 
 import org.apache.james.core.Username;
+import org.apache.james.user.api.UserConflictException;
 import org.apache.james.user.api.UsersRepository;
 import org.apache.james.user.api.UsersRepositoryException;
 import org.apache.james.user.api.model.User;
@@ -60,21 +61,23 @@ public class UserService {
         usersRepository.removeUser(username);
     }
 
-    public void upsertUser(Username username, char[] password) throws UsersRepositoryException {
+    public void upsertUser(Username username, char[] password, Boolean isForced) throws UsersRepositoryException, UserConflictException {
         User user = usersRepository.getUserByName(username);
-        upsert(user, username, password);
+        upsert(user, username, password, isForced);
     }
 
     public boolean userExists(Username username) throws UsersRepositoryException {
         return usersRepository.contains(username);
     }
 
-    private void upsert(User user, Username username, char[] password) throws UsersRepositoryException {
+    private void upsert(User user, Username username, char[] password, Boolean isForced) throws UsersRepositoryException, UserConflictException {
         if (user == null) {
             usersRepository.addUser(username, new String(password));
-        } else {
+        } else if (isForced) {
             user.setPassword(new String(password));
             usersRepository.updateUser(user);
+        } else {
+            throw new UserConflictException("User " + username + " already exists.");
         }
     }
 }
