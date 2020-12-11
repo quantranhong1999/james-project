@@ -298,7 +298,7 @@ Response codes:
 
 ## Administrating users
 
-   - [Create a user](#Create_a_user)-
+   - [Create a user](#Create_a_user)
    - [Testing a user existence](#Testing_a_user_existence)
    - [Updating a user password](#Updating_a_user_password)
    - [Deleting a user](#Deleting_a_user)
