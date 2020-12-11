@@ -59,9 +59,7 @@ public class MailboxManageTest {
     }
 
     @Test
-    void mailboxCreateWithExistedUsernameAndValidMailboxNameShouldSucceed(GuiceJamesServer server) throws Exception {
-        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
-        dataProbe = server.getProbe(DataProbeImpl.class);
+    void mailboxCreateWithExistedUsernameAndValidMailboxNameShouldSucceed() throws Exception {
         dataProbe.fluent().addDomain("linagora.com")
             .addUser("hqtran@linagora.com", "123456");
 
@@ -77,9 +75,7 @@ public class MailboxManageTest {
     }
 
     @Test
-    void mailboxCreateWithExistedUsernameAndInvalidMailboxNameShouldFail(GuiceJamesServer server) throws Exception {
-        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
-        dataProbe = server.getProbe(DataProbeImpl.class);
+    void mailboxCreateWithExistedUsernameAndInvalidMailboxNameShouldFail() throws Exception {
         dataProbe.fluent().addDomain("linagora.com")
             .addUser("hqtran@linagora.com", "123456");
 
@@ -91,9 +87,7 @@ public class MailboxManageTest {
     }
 
     @Test
-    void mailboxCreateWithNonExistingUsernameShouldFail(GuiceJamesServer server) {
-        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
-
+    void mailboxCreateWithNonExistingUsernameShouldFail() {
         int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
             "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "create", "hqtran@linagora.com", "INBOX");
 
