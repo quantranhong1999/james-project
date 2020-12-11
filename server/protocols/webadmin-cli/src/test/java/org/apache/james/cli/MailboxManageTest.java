@@ -33,6 +33,7 @@ import org.apache.james.util.Port;
 import org.apache.james.utils.DataProbeImpl;
 import org.apache.james.utils.WebAdminGuiceProbe;
 import org.apache.james.webadmin.integration.WebadminIntegrationTestModule;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
@@ -49,6 +50,13 @@ public class MailboxManageTest {
     private final ByteArrayOutputStream outputStreamCaptor = new ByteArrayOutputStream();
     private final ByteArrayOutputStream errorStreamCaptor = new ByteArrayOutputStream();
     private DataProbeImpl dataProbe;
+    private Port port;
+
+    @BeforeEach
+    void setUp(GuiceJamesServer server) {
+        port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
+        dataProbe = server.getProbe(DataProbeImpl.class);
+    }
 
     @Test
     void mailboxCreateWithExistedUsernameAndValidMailboxNameShouldSucceed(GuiceJamesServer server) throws Exception {
@@ -247,9 +255,7 @@ public class MailboxManageTest {
     }
 
     @Test
-    void mailboxDeleteAllWithExistingUserShouldDeleteAllMailboxes(GuiceJamesServer server) throws Exception {
-        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
-        dataProbe = server.getProbe(DataProbeImpl.class);
+    void mailboxDeleteAllWithExistingUserShouldDeleteAllMailboxes() throws Exception {
         dataProbe.fluent().addDomain("linagora.com")
                 .addUser("hqtran@linagora.com", "123456");
 
@@ -270,9 +276,7 @@ public class MailboxManageTest {
     }
 
     @Test
-    void mailboxDeleteAllWithNonExistingUsernameShouldFail(GuiceJamesServer server) throws Exception {
-        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
-        dataProbe = server.getProbe(DataProbeImpl.class);
+    void mailboxDeleteAllWithNonExistingUsernameShouldFail() throws Exception {
         dataProbe.fluent().addDomain("linagora.com");
 
         int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),

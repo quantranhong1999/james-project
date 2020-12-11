@@ -19,12 +19,13 @@
 
 package org.apache.james.cli.mailbox;
 
-import feign.Response;
+import java.util.concurrent.Callable;
+
 import org.apache.james.cli.WebAdminCli;
 import org.apache.james.httpclient.MailboxClient;
-import picocli.CommandLine;
 
-import java.util.concurrent.Callable;
+import feign.Response;
+import picocli.CommandLine;
 
 @CommandLine.Command(
         name = "deleteAll",
