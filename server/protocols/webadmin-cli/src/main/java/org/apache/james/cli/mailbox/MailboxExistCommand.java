@@ -53,8 +53,7 @@ public class MailboxExistCommand implements Callable<Integer> {
                 mailboxCommand.out.println("The mailbox exists.");
                 return WebAdminCli.CLI_FINISHED_SUCCEED;
             } else if (rs.status() == INVALID_MAILBOX_NAME_CODE) {
-                mailboxCommand.out.println("Invalid mailbox name\n" +
-                    "Resource name mailboxNameToBeTested should not be empty, nor contain # & % * characters.");
+                mailboxCommand.err.println(rs.body());
                 return WebAdminCli.CLI_FINISHED_FAILED;
             } else if (rs.status() == NOT_EXISTED_CODE) {
                 mailboxCommand.out.println("Either the user name or the mailbox does not exist.");
