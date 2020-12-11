@@ -171,9 +171,7 @@ public class MailboxManageTest {
     }
 
     @Test
-    void mailboxDeleteAParentMailboxWithTwoAddedChildrenMailboxShouldDeleteThemAll(GuiceJamesServer server) throws Exception {
-        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
-        dataProbe = server.getProbe(DataProbeImpl.class);
+    void mailboxDeleteAParentMailboxWithTwoAddedChildrenMailboxShouldDeleteThemAll() throws Exception {
         dataProbe.fluent().addDomain("linagora.com")
             .addUser("hqtran@linagora.com", "123456");
 
@@ -194,9 +192,7 @@ public class MailboxManageTest {
     }
 
     @Test
-    void mailboxDeleteWithNonExistingUsernameShouldFail(GuiceJamesServer server) throws Exception {
-        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
-        dataProbe = server.getProbe(DataProbeImpl.class);
+    void mailboxDeleteWithNonExistingUsernameShouldFail() throws Exception {
         dataProbe.fluent().addDomain("linagora.com");
 
         int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
@@ -207,9 +203,7 @@ public class MailboxManageTest {
     }
 
     @Test
-    void mailboxDeleteWithInvalidMailboxNameShouldFail(GuiceJamesServer server) throws Exception {
-        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
-        dataProbe = server.getProbe(DataProbeImpl.class);
+    void mailboxDeleteWithInvalidMailboxNameShouldFail() throws Exception {
         dataProbe.fluent().addDomain("linagora.com")
                 .addUser("hqtran@linagora.com", "123456");
 
@@ -221,9 +215,7 @@ public class MailboxManageTest {
     }
 
     @Test
-    void mailboxDeleteWithInvalidUsernameShouldFail(GuiceJamesServer server) throws Exception {
-        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
-        dataProbe = server.getProbe(DataProbeImpl.class);
+    void mailboxDeleteWithInvalidUsernameShouldFail() throws Exception {
         dataProbe.fluent().addDomain("linagora.com")
                 .addUser("hqtran@linagora.com", "123456");
 
