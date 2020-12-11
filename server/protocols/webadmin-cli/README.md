@@ -148,7 +148,7 @@ If you want to update a user's password, please have a look at [Update a user pa
 ### Update a user password
 
 ```
-{cli} user update <username> --password
+{cli} user create --force <username> --password
 ```
 Then the Command Line will prompt users to enter password (password will not be printed on the screen for security):
 ```
