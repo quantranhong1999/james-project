@@ -19,13 +19,19 @@
 
 package org.apache.james.webadmin.routes;
 
-import com.github.steveash.guavate.Guavate;
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiImplicitParam;
-import io.swagger.annotations.ApiImplicitParams;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
+import static org.apache.james.webadmin.Constants.SEPARATOR;
+import static spark.Spark.halt;
+
+import java.util.List;
+
+import javax.inject.Inject;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.HEAD;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+
 import org.apache.james.core.MailAddress;
 import org.apache.james.core.Username;
 import org.apache.james.rrt.api.CanSendFrom;
@@ -48,22 +54,19 @@ import org.apache.james.webadmin.utils.Responses;
 import org.eclipse.jetty.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.github.steveash.guavate.Guavate;
+
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiImplicitParam;
+import io.swagger.annotations.ApiImplicitParams;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
 import spark.HaltException;
 import spark.Request;
 import spark.Response;
 import spark.Service;
-
-import javax.inject.Inject;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.HEAD;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-import java.util.List;
-
-import static org.apache.james.webadmin.Constants.SEPARATOR;
-import static spark.Spark.halt;
 
 @Api(tags = "Users")
 @Path(UserRoutes.USERS)
@@ -74,7 +77,7 @@ public class UserRoutes implements Routes {
     private static final Logger LOGGER = LoggerFactory.getLogger(UserRoutes.class);
 
     public static final String USERS = "/users";
-    private static final String FORCE_PARAMS = "force";
+    private static final String FORCE_PARAM = "force";
 
     private final UserService userService;
     private final JsonTransformer jsonTransformer;
@@ -155,7 +158,7 @@ public class UserRoutes implements Routes {
                     dataType = "String",
                     allowEmptyValue = true,
                     example = "?force",
-                    value = "If present, update User's password.")
+                    value = "If present, it allows to overwrite a user password. Otherwise modification of already existing users are rejected.")
     })
     @ApiResponses(value = {
             @ApiResponse(code = HttpStatus.NO_CONTENT_204, message = "OK. New user is added."),
@@ -228,7 +231,7 @@ public class UserRoutes implements Routes {
     private HaltException upsertUser(Request request, Response response) throws JsonExtractException {
         Username username = extractUsername(request);
         try {
-            boolean isForced = request.queryParams().contains(FORCE_PARAMS);
+            boolean isForced = request.queryParams().contains(FORCE_PARAM);
             if (isForced) {
                 userService.upsertUser(username, jsonExtractor.parse(request.body()).getPassword());
             } else {
