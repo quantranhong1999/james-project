@@ -96,9 +96,7 @@ public class MailboxManageTest {
     }
 
     @Test
-    void mailboxExistWithExistedUsernameAndExistedMailboxNameShouldSucceed(GuiceJamesServer server) throws Exception {
-        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
-        dataProbe = server.getProbe(DataProbeImpl.class);
+    void mailboxExistWithExistedUsernameAndExistedMailboxNameShouldSucceed() throws Exception {
         dataProbe.fluent().addDomain("linagora.com")
             .addUser("hqtran@linagora.com", "123456");
 
@@ -113,9 +111,7 @@ public class MailboxManageTest {
     }
 
     @Test
-    void mailboxExistWithInvalidMailboxNameShouldFail(GuiceJamesServer server) throws Exception {
-        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
-        dataProbe = server.getProbe(DataProbeImpl.class);
+    void mailboxExistWithInvalidMailboxNameShouldFail() throws Exception {
         dataProbe.fluent().addDomain("linagora.com")
             .addUser("hqtran@linagora.com", "123456");
 
@@ -127,9 +123,7 @@ public class MailboxManageTest {
     }
 
     @Test
-    void mailboxExistWithExistedUserAndNonExistingMailboxNameShouldFail(GuiceJamesServer server) throws Exception {
-        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
-        dataProbe = server.getProbe(DataProbeImpl.class);
+    void mailboxExistWithExistedUserAndNonExistingMailboxNameShouldFail() throws Exception {
         dataProbe.fluent().addDomain("linagora.com")
             .addUser("hqtran@linagora.com", "123456");
 
@@ -141,10 +135,7 @@ public class MailboxManageTest {
     }
 
     @Test
-    void mailboxExistWithNonExistingUserAndNonExistingMailboxNameShouldFail(GuiceJamesServer server) {
-        Port port = server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort();
-        dataProbe = server.getProbe(DataProbeImpl.class);
-
+    void mailboxExistWithNonExistingUserAndNonExistingMailboxNameShouldFail() {
         int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
             "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "exist", "hqtran@linagora.com", "INBOX");
 
