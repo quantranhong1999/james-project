@@ -26,7 +26,7 @@ import java.util.stream.Stream;
 import javax.inject.Inject;
 
 import org.apache.james.core.Username;
-import org.apache.james.user.api.UserConflictException;
+import org.apache.james.user.api.AlreadyExistInUsersRepositoryException;
 import org.apache.james.user.api.UsersRepository;
 import org.apache.james.user.api.UsersRepositoryException;
 import org.apache.james.user.api.model.User;
@@ -61,23 +61,27 @@ public class UserService {
         usersRepository.removeUser(username);
     }
 
-    public void upsertUser(Username username, char[] password, Boolean isForced) throws UsersRepositoryException, UserConflictException {
+    public void upsertUser(Username username, char[] password) throws UsersRepositoryException {
         User user = usersRepository.getUserByName(username);
-        upsert(user, username, password, isForced);
+        if (user == null) {
+            usersRepository.addUser(username, new String(password));
+        } else {
+            user.setPassword(new String(password));
+            usersRepository.updateUser(user);
+        }
     }
 
     public boolean userExists(Username username) throws UsersRepositoryException {
         return usersRepository.contains(username);
     }
 
-    private void upsert(User user, Username username, char[] password, Boolean isForced) throws UsersRepositoryException, UserConflictException {
+    public void insertUser(Username username, char[] password) throws UsersRepositoryException, AlreadyExistInUsersRepositoryException {
+        User user = usersRepository.getUserByName(username);
         if (user == null) {
             usersRepository.addUser(username, new String(password));
-        } else if (isForced) {
-            user.setPassword(new String(password));
-            usersRepository.updateUser(user);
         } else {
-            throw new UserConflictException("User " + username + " already exists.");
+            throw new AlreadyExistInUsersRepositoryException("User " + username + " already exists.");
         }
     }
+
 }

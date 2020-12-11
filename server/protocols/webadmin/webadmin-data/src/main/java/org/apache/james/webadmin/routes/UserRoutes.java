@@ -19,27 +19,20 @@
 
 package org.apache.james.webadmin.routes;
 
-import static org.apache.james.webadmin.Constants.SEPARATOR;
-import static spark.Spark.halt;
-
-import java.util.List;
-import java.util.Optional;
-
-import javax.inject.Inject;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.HEAD;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
-
+import com.github.steveash.guavate.Guavate;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiImplicitParam;
+import io.swagger.annotations.ApiImplicitParams;
+import io.swagger.annotations.ApiOperation;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
 import org.apache.james.core.MailAddress;
 import org.apache.james.core.Username;
 import org.apache.james.rrt.api.CanSendFrom;
 import org.apache.james.rrt.api.RecipientRewriteTable;
 import org.apache.james.rrt.api.RecipientRewriteTableException;
+import org.apache.james.user.api.AlreadyExistInUsersRepositoryException;
 import org.apache.james.user.api.InvalidUsernameException;
-import org.apache.james.user.api.UserConflictException;
 import org.apache.james.user.api.UsersRepositoryException;
 import org.apache.james.webadmin.Constants;
 import org.apache.james.webadmin.Routes;
@@ -55,19 +48,22 @@ import org.apache.james.webadmin.utils.Responses;
 import org.eclipse.jetty.http.HttpStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.github.steveash.guavate.Guavate;
-
-import io.swagger.annotations.Api;
-import io.swagger.annotations.ApiImplicitParam;
-import io.swagger.annotations.ApiImplicitParams;
-import io.swagger.annotations.ApiOperation;
-import io.swagger.annotations.ApiResponse;
-import io.swagger.annotations.ApiResponses;
 import spark.HaltException;
 import spark.Request;
 import spark.Response;
 import spark.Service;
+
+import javax.inject.Inject;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.HEAD;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import java.util.List;
+
+import static org.apache.james.webadmin.Constants.SEPARATOR;
+import static spark.Spark.halt;
 
 @Api(tags = "Users")
 @Path(UserRoutes.USERS)
@@ -78,7 +74,7 @@ public class UserRoutes implements Routes {
     private static final Logger LOGGER = LoggerFactory.getLogger(UserRoutes.class);
 
     public static final String USERS = "/users";
-    private static final String ACTIVATE_PARAMS = "force";
+    private static final String FORCE_PARAMS = "force";
 
     private final UserService userService;
     private final JsonTransformer jsonTransformer;
@@ -155,11 +151,10 @@ public class UserRoutes implements Routes {
             @ApiImplicitParam(required = true, dataType = "string", name = "username", paramType = "path"),
             @ApiImplicitParam(required = true, dataTypeClass = AddUserRequest.class, paramType = "body"),
             @ApiImplicitParam(
-                    required = false,
                     paramType = "query parameter",
-                    dataType = "Boolean",
-                    defaultValue = "False",
-                    example = "?force=true",
+                    dataType = "String",
+                    allowEmptyValue = true,
+                    example = "?force",
                     value = "If present, update User's password.")
     })
     @ApiResponses(value = {
@@ -233,10 +228,13 @@ public class UserRoutes implements Routes {
     private HaltException upsertUser(Request request, Response response) throws JsonExtractException {
         Username username = extractUsername(request);
         try {
-            boolean isForced = isForced(request.queryParams(ACTIVATE_PARAMS));
-            userService.upsertUser(username, jsonExtractor.parse(request.body()).getPassword(), isForced);
+            boolean isForced = request.queryParams().contains(FORCE_PARAMS);
+            if (isForced) {
+                userService.upsertUser(username, jsonExtractor.parse(request.body()).getPassword());
+            } else {
+                userService.insertUser(username, jsonExtractor.parse(request.body()).getPassword());
+            }
             return halt(HttpStatus.NO_CONTENT_204);
-
         } catch (InvalidUsernameException e) {
             LOGGER.info("Invalid username", e);
             throw ErrorResponder.builder()
@@ -245,7 +243,7 @@ public class UserRoutes implements Routes {
                 .message("Username supplied is invalid")
                 .cause(e)
                 .haltError();
-        } catch (UserConflictException e) {
+        } catch (AlreadyExistInUsersRepositoryException e) {
             LOGGER.info(e.getMessage());
             throw ErrorResponder.builder()
                     .statusCode(HttpStatus.CONFLICT_409)
@@ -296,29 +294,6 @@ public class UserRoutes implements Routes {
 
     private Username extractUsername(Request request) {
         return Username.of(request.params(USER_NAME));
-    }
-
-    private boolean isForced(String forceParam) {
-        return Optional.ofNullable(forceParam)
-                .map(String::trim)
-                .map(this::parseForceParam)
-                .orElse(false);
-    }
-
-    private boolean parseForceParam(String forceParam) {
-        if (forceParam.equalsIgnoreCase(Boolean.TRUE.toString())
-                || forceParam.equalsIgnoreCase(Boolean.FALSE.toString())) {
-            return Boolean.parseBoolean(forceParam);
-        }
-        throw throw400withInvalidArgument("Invalid activate query parameter");
-    }
-
-    private HaltException throw400withInvalidArgument(String message) {
-        throw ErrorResponder.builder()
-                .statusCode(HttpStatus.BAD_REQUEST_400)
-                .type(ErrorResponder.ErrorType.INVALID_ARGUMENT)
-                .message(message)
-                .haltError();
     }
 
 }
