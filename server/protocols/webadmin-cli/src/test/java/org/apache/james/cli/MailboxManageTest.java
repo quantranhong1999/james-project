@@ -235,8 +235,7 @@ public class MailboxManageTest {
                 "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "list", "hqtran@linagora.com");
 
         assertThat(exitCode).isEqualTo(0);
-        assertThat(outputStreamCaptor.toString()).isEqualTo("The mailbox now does not exist on the server.\n"
-            + "");
+        assertThat(outputStreamCaptor.toString()).isEqualTo("The mailbox now does not exist on the server.\n");
     }
 
     @Test
