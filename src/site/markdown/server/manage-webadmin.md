@@ -299,8 +299,8 @@ Response codes:
 ## Administrating users
 
    - [Create a user](#Create_a_user)
-   - [Testing a user existence](#Testing_a_user_existence)
    - [Updating a user password](#Updating_a_user_password)
+   - [Testing a user existence](#Testing_a_user_existence)
    - [Deleting a user](#Deleting_a_user)
    - [Retrieving the user list](#Retrieving_the_user_list)
    - [Retrieving the list of allowed `From` headers for a given user](Retrieving_the_list_of_allowed_From_headers_for_a_given_user)
@@ -340,7 +340,7 @@ Response codes:
 
 This also can be used to create a new user.
 
-###Testing a user existence
+### Testing a user existence
 
 ```
 curl -XHEAD http://ip:port/users/usernameToBeUsed
