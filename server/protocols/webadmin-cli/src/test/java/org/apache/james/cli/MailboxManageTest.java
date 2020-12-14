@@ -70,7 +70,7 @@ public class MailboxManageTest {
             "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "exist", "hqtran@linagora.com", "INBOX");
 
         assertThat(exitCode).isEqualTo(0);
-        assertThat(outputStreamCaptor.toString().trim()).isEqualTo("The mailbox was created successfully.\n" +
+        assertThat(outputStreamCaptor.toString().trim()).isEqualTo("The mailbox now exists on the server.\n" +
             "The mailbox exists.");
     }
 
@@ -93,6 +93,41 @@ public class MailboxManageTest {
 
         assertThat(exitCode).isEqualTo(1);
         assertThat(errorStreamCaptor.toString()).contains("404");
+    }
+
+    @Test
+    void mailboxCreateWithAlreadyExistingMailboxShouldSucceed() throws Exception {
+        dataProbe.fluent().addDomain("linagora.com")
+            .addUser("hqtran@linagora.com", "123456");
+
+        int exitCode = WebAdminCli.executeFluent(new PrintStream(new ByteArrayOutputStream()), new PrintStream(new ByteArrayOutputStream()),
+            "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "create", "hqtran@linagora.com", "INBOX");
+
+        int exitCode2 = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+            "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "create", "hqtran@linagora.com", "INBOX");
+
+        assertThat(exitCode).isEqualTo(0);
+        assertThat(exitCode2).isEqualTo(0);
+        assertThat(outputStreamCaptor.toString().trim()).isEqualTo("The mailbox now exists on the server.");
+    }
+
+    @Test
+    void mailboxCreateSubMailboxesShouldSucceed() throws Exception {
+        dataProbe.fluent().addDomain("linagora.com")
+            .addUser("hqtran@linagora.com", "123456");
+
+        int exitCode = WebAdminCli.executeFluent(new PrintStream(new ByteArrayOutputStream()), new PrintStream(new ByteArrayOutputStream()),
+            "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "create", "hqtran@linagora.com", "INBOX.1");
+
+        int exitCode2 = WebAdminCli.executeFluent(new PrintStream(new ByteArrayOutputStream()), new PrintStream(new ByteArrayOutputStream()),
+            "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "create", "hqtran@linagora.com", "INBOX.2");
+
+        WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+            "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "list", "hqtran@linagora.com");
+
+        assertThat(exitCode).isEqualTo(0);
+        assertThat(exitCode2).isEqualTo(0);
+        assertThat(outputStreamCaptor.toString()).isEqualTo("INBOX\nINBOX.1\nINBOX.2\n");
     }
 
     @Test
