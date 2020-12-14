@@ -292,8 +292,7 @@ public class MailboxManageTest {
                 "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "list", "hqtran@linagora.com");
 
         assertThat(exitCode).isEqualTo(0);
-        assertThat(outputStreamCaptor.toString()).isEqualTo("The user do not have mailboxes anymore.\n"
-            + "");
+        assertThat(outputStreamCaptor.toString()).isEqualTo("The user do not have mailboxes anymore.\n");
     }
 
     @Test
