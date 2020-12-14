@@ -184,16 +184,28 @@ public class MailboxManageTest {
             .addUser("hqtran@linagora.com", "123456");
 
         WebAdminCli.executeFluent(new PrintStream(new ByteArrayOutputStream()), new PrintStream(new ByteArrayOutputStream()),
-            "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "create", "hqtran@linagora.com", "INBOX.1");
+            "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "create", "hqtran@linagora.com", "INBOX1");
 
         WebAdminCli.executeFluent(new PrintStream(new ByteArrayOutputStream()), new PrintStream(new ByteArrayOutputStream()),
-            "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "create", "hqtran@linagora.com", "INBOX.2");
+            "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "create", "hqtran@linagora.com", "INBOX2");
 
         int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
             "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "list", "hqtran@linagora.com");
 
         assertThat(exitCode).isEqualTo(0);
-        assertThat(outputStreamCaptor.toString()).isEqualTo("INBOX\nINBOX.1\nINBOX.2\n");
+        assertThat(outputStreamCaptor.toString()).isEqualTo("INBOX1\nINBOX2\n");
+    }
+
+    @Test
+    void mailboxListWithAValidUserAndNonExistingMailboxesShouldShowNothing() throws Exception {
+        dataProbe.fluent().addDomain("linagora.com")
+            .addUser("hqtran@linagora.com", "123456");
+
+        int exitCode = WebAdminCli.executeFluent(new PrintStream(outputStreamCaptor), new PrintStream(errorStreamCaptor),
+            "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "list", "hqtran@linagora.com");
+
+        assertThat(exitCode).isEqualTo(0);
+        assertThat(outputStreamCaptor.toString()).isEqualTo("");
     }
 
     @Test
