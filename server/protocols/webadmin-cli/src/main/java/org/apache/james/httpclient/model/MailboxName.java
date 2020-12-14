@@ -19,7 +19,6 @@
 
 package org.apache.james.httpclient.model;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class MailboxName {
