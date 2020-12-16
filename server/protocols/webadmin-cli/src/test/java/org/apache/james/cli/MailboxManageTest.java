@@ -70,7 +70,7 @@ public class MailboxManageTest {
             "--url", "http://127.0.0.1:" + port.getValue(), "mailbox", "exist", "hqtran@linagora.com", "INBOX");
 
         assertThat(exitCode).isEqualTo(0);
-        assertThat(outputStreamCaptor.toString().trim()).isEqualTo("The mailbox now exists on the server.\n" +
+        assertThat(outputStreamCaptor.toString().trim()).isEqualTo("The mailbox was created successfully.\n" +
             "The mailbox exists.");
     }
 
@@ -108,7 +108,7 @@ public class MailboxManageTest {
 
         assertThat(exitCode).isEqualTo(0);
         assertThat(exitCode2).isEqualTo(0);
-        assertThat(outputStreamCaptor.toString().trim()).isEqualTo("The mailbox now exists on the server.");
+        assertThat(outputStreamCaptor.toString().trim()).isEqualTo("The mailbox was created successfully.");
     }
 
     @Test
