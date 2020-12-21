@@ -27,6 +27,8 @@ import org.apache.james.core.Username;
 import org.apache.james.jmap.JMAPServer;
 import org.apache.james.jmap.api.change.MailboxChange;
 import org.apache.james.jmap.api.change.MailboxChangeRepository;
+import org.apache.james.jmap.api.filtering.FilteringManagement;
+import org.apache.james.jmap.api.filtering.Rule;
 import org.apache.james.jmap.api.change.State;
 import org.apache.james.jmap.api.model.AccountId;
 import org.apache.james.jmap.api.projections.MessageFastViewProjection;
@@ -55,9 +57,10 @@ public class JmapGuiceProbe implements GuiceProbe {
     private final MailboxManager mailboxManager;
     private final EventBus eventBus;
     private final MessageFastViewProjection messageFastViewProjection;
+    private final FilteringManagement filteringManagement;
 
     @Inject
-    private JmapGuiceProbe(VacationRepository vacationRepository, MailboxChangeRepository mailboxChangeRepository, JMAPServer jmapServer, MessageIdManager messageIdManager, MailboxManager mailboxManager, EventBus eventBus, MessageFastViewProjection messageFastViewProjection) {
+    private JmapGuiceProbe(VacationRepository vacationRepository, MailboxChangeRepository mailboxChangeRepository, JMAPServer jmapServer, MessageIdManager messageIdManager, MailboxManager mailboxManager, EventBus eventBus, MessageFastViewProjection messageFastViewProjection, FilteringManagement filteringManagement) {
         this.vacationRepository = vacationRepository;
         this.mailboxChangeRepository = mailboxChangeRepository;
         this.jmapServer = jmapServer;
@@ -65,6 +68,7 @@ public class JmapGuiceProbe implements GuiceProbe {
         this.mailboxManager = mailboxManager;
         this.eventBus = eventBus;
         this.messageFastViewProjection = messageFastViewProjection;
+        this.filteringManagement = filteringManagement;
     }
 
     public Port getJmapPort() {
@@ -98,5 +102,9 @@ public class JmapGuiceProbe implements GuiceProbe {
 
     public State latestState(AccountId accountId) {
         return mailboxChangeRepository.getLatestState(accountId).block();
+    }
+
+    public void setRulesForUser(Username username, Rule... rules) {
+        Mono.from(filteringManagement.defineRulesForUser(username, rules)).block();
     }
 }

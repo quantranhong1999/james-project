@@ -19,7 +19,7 @@
 package org.apache.james.jmap.core
 
 import eu.timepit.refined.auto._
-import org.apache.james.jmap.core.CapabilityIdentifier.{CapabilityIdentifier, EMAIL_SUBMISSION, JAMES_QUOTA, JAMES_SHARES, JMAP_CORE, JMAP_MAIL, JMAP_VACATION_RESPONSE}
+import org.apache.james.jmap.core.CapabilityIdentifier.{CapabilityIdentifier, EMAIL_SUBMISSION, JAMES_QUOTA, JAMES_SHARES, JMAP_CORE, JMAP_FILTER, JMAP_MAIL, JMAP_VACATION_RESPONSE}
 
 object DefaultCapabilities {
   private def coreCapability(maxUploadSize: MaxSizeUpload) = CoreCapability(
@@ -46,7 +46,7 @@ object DefaultCapabilities {
   private val SUBMISSION_CAPABILITY = SubmissionCapability()
 
   val SUPPORTED_CAPABILITY_IDENTIFIERS: Set[CapabilityIdentifier] =
-    Set(JMAP_CORE, JMAP_MAIL, JMAP_VACATION_RESPONSE, JAMES_SHARES, JAMES_QUOTA, EMAIL_SUBMISSION)
+    Set(JMAP_CORE, JMAP_MAIL, JMAP_VACATION_RESPONSE, JAMES_SHARES, JAMES_QUOTA, EMAIL_SUBMISSION, JMAP_FILTER)
 
   def supported(maxUploadSize: MaxSizeUpload): Capabilities = Capabilities(coreCapability(maxUploadSize),
     MAIL_CAPABILITY,

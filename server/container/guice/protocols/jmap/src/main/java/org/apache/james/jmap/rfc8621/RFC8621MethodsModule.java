@@ -38,6 +38,7 @@ import org.apache.james.jmap.method.EmailGetMethod;
 import org.apache.james.jmap.method.EmailQueryMethod;
 import org.apache.james.jmap.method.EmailSetMethod;
 import org.apache.james.jmap.method.EmailSubmissionSetMethod;
+import org.apache.james.jmap.method.FilterGetMethod;
 import org.apache.james.jmap.method.IdentityGetMethod;
 import org.apache.james.jmap.method.MailboxChangesMethod;
 import org.apache.james.jmap.method.MailboxGetMethod;
@@ -94,6 +95,7 @@ public class RFC8621MethodsModule extends AbstractModule {
         methods.addBinding().to(IdentityGetMethod.class);
         methods.addBinding().to(ThreadChangesMethod.class);
         methods.addBinding().to(ThreadGetMethod.class);
+        methods.addBinding().to(FilterGetMethod.class);
     }
 
     @ProvidesIntoSet

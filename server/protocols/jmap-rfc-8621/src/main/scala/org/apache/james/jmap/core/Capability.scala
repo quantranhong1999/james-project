@@ -43,6 +43,7 @@ object CapabilityIdentifier {
   val EMAIL_SUBMISSION: CapabilityIdentifier = "urn:ietf:params:jmap:submission"
   val JAMES_QUOTA: CapabilityIdentifier = "urn:apache:james:params:jmap:mail:quota"
   val JAMES_SHARES: CapabilityIdentifier = "urn:apache:james:params:jmap:mail:shares"
+  val JMAP_FILTER: CapabilityIdentifier = "urn:linagora:openpaas:params:jmap:mail:filter"
 }
 
 sealed trait CapabilityProperties
