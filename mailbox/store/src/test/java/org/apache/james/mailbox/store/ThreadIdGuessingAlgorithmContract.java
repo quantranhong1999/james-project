@@ -59,6 +59,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import com.google.common.collect.ImmutableList;
+
 import reactor.core.publisher.Flux;
 
 public abstract class ThreadIdGuessingAlgorithmContract {
@@ -244,14 +246,17 @@ public abstract class ThreadIdGuessingAlgorithmContract {
 
         Flux<MessageId> messageIds = testee.getMessageIdsInThread(ThreadId.fromBaseMessageId(newBasedMessageId), mailboxSession);
 
-        assertThat(messageIds.collectList().block()).isEqualTo(List.of(message1.getMessageId(), message2.getMessageId(), message3.getMessageId()));
+        assertThat(messageIds.collectList().block())
+            .isEqualTo(ImmutableList.of(message1.getMessageId(), message2.getMessageId(), message3.getMessageId()));
     }
 
     @Test
     void givenNonMailInAThreadThenGetThreadShouldThrowThreadNotFoundException() throws MailboxException {
         Flux<MessageId> messageIds = testee.getMessageIdsInThread(ThreadId.fromBaseMessageId(newBasedMessageId), mailboxSession);
 
-        assertThatThrownBy(() -> testee.getMessageIdsInThread(ThreadId.fromBaseMessageId(newBasedMessageId), mailboxSession).collectList().block()).getCause().isInstanceOf(ThreadNotFoundException.class);
+        assertThatThrownBy(() -> testee.getMessageIdsInThread(ThreadId.fromBaseMessageId(newBasedMessageId), mailboxSession).collectList().block())
+            .getCause()
+            .isInstanceOf(ThreadNotFoundException.class);
     }
 
     private SimpleMailboxMessage createMessage(MailboxId mailboxId, ThreadId threadId) {

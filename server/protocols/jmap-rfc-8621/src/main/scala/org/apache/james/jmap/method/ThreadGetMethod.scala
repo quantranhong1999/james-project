@@ -1,4 +1,4 @@
-/** **************************************************************
+/****************************************************************
  * Licensed to the Apache Software Foundation (ASF) under one   *
  * or more contributor license agreements.  See the NOTICE file *
  * distributed with this work for additional information        *
@@ -6,16 +6,16 @@
  * to you under the Apache License, Version 2.0 (the            *
  * "License"); you may not use this file except in compliance   *
  * with the License.  You may obtain a copy of the License at   *
- * *
- * http://www.apache.org/licenses/LICENSE-2.0                 *
- * *
+ *                                                              *
+ *   http://www.apache.org/licenses/LICENSE-2.0                 *
+ *                                                              *
  * Unless required by applicable law or agreed to in writing,   *
  * software distributed under the License is distributed on an  *
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY       *
  * KIND, either express or implied.  See the License for the    *
  * specific language governing permissions and limitations      *
  * under the License.                                           *
- * ************************************************************** */
+ ****************************************************************/
 
 package org.apache.james.jmap.method
 
@@ -27,7 +27,7 @@ import org.apache.james.jmap.core.{AccountId, Invocation, UuidState}
 import org.apache.james.jmap.json.{ResponseSerializer, ThreadSerializer}
 import org.apache.james.jmap.mail.{Thread, ThreadGetRequest, ThreadGetResponse, ThreadNotFound, UnparsedThreadId}
 import org.apache.james.jmap.routes.SessionSupplier
-import org.apache.james.mailbox.model.{MessageId, ThreadId => JavaThreadId}
+import org.apache.james.mailbox.model.{ThreadId => JavaThreadId}
 import org.apache.james.mailbox.{MailboxManager, MailboxSession}
 import org.apache.james.metrics.api.MetricFactory
 import play.api.libs.json.{JsError, JsSuccess}
@@ -61,7 +61,7 @@ case class ThreadGetResult(threads: Set[Thread], notFound: ThreadNotFound) {
 
 class ThreadGetMethod @Inject()(val metricFactory: MetricFactory,
                                 val sessionSupplier: SessionSupplier,
-                                val messageIdFactory: MessageId.Factory,
+                                val threadIdFactory: JavaThreadId.Factory,
                                 val mailboxManager: MailboxManager) extends MethodRequiringAccountId[ThreadGetRequest] {
   override val methodName: MethodName = MethodName("Thread/get")
   override val requiredCapabilities: Set[CapabilityIdentifier] = Set(JMAP_CORE, JMAP_MAIL)
@@ -87,9 +87,9 @@ class ThreadGetMethod @Inject()(val metricFactory: MetricFactory,
                                 mailboxSession: MailboxSession): SFlux[ThreadGetResult] = {
     SFlux.fromIterable(threadGetRequest.ids)
       .flatMap(unparsedThreadId => {
-        Try(messageIdFactory.fromString(unparsedThreadId.id.toString()))
+        Try(threadIdFactory.fromString(unparsedThreadId.id.toString()))
           .fold(e => SFlux.just(ThreadGetResult.notFound(unparsedThreadId)),
-            baseMessageId => SFlux.fromPublisher(mailboxManager.getThread(JavaThreadId.fromBaseMessageId(baseMessageId), mailboxSession))
+            threadId => SFlux.fromPublisher(mailboxManager.getThread(threadId, mailboxSession))
               .collectSeq()
               .map(seq => Thread(id = unparsedThreadId.id, emailIds = seq.toList))
               .map(ThreadGetResult.found)

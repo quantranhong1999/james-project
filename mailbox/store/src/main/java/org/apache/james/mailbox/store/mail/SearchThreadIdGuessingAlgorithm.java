@@ -76,8 +76,8 @@ public class SearchThreadIdGuessingAlgorithm implements ThreadIdGuessingAlgorith
             .collectList()
             .flatMapMany(messageIds -> messageIdManager.getMessagesReactive(messageIds, FetchGroup.MINIMAL, session))
             .filter(messageResult -> messageResult.getThreadId().equals(threadId))
-            .map(messageResult -> messageResult.getMessageId())
-            .switchIfEmpty(Mono.error(new ThreadNotFoundException(threadId)));
+            .map(MessageResult::getMessageId)
+            .switchIfEmpty(Mono.error(() -> new ThreadNotFoundException(threadId)));
     }
 
     private MultimailboxesSearchQuery buildSearchQuery(Optional<MimeMessageId> mimeMessageId, Optional<MimeMessageId> inReplyTo, Optional<List<MimeMessageId>> references, Optional<Subject> subject) {

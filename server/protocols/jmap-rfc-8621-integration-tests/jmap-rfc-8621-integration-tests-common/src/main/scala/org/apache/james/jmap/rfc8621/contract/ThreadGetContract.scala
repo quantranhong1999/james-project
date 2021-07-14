@@ -29,7 +29,7 @@ import org.apache.http.HttpStatus.SC_OK
 import org.apache.james.GuiceJamesServer
 import org.apache.james.jmap.core.ResponseObject.SESSION_STATE
 import org.apache.james.jmap.http.UserCredential
-import org.apache.james.jmap.rfc8621.contract.Fixture.{ACCEPT_RFC8621_VERSION_HEADER, ANDRE, BOB, BOB_PASSWORD, DOMAIN, authScheme, baseRequestSpecBuilder}
+import org.apache.james.jmap.rfc8621.contract.Fixture.{ACCEPT_RFC8621_VERSION_HEADER, BOB, BOB_PASSWORD, DOMAIN, authScheme, baseRequestSpecBuilder}
 import org.apache.james.mailbox.MessageManager
 import org.apache.james.mailbox.model.MailboxPath
 import org.apache.james.mime4j.dom.Message
@@ -37,18 +37,6 @@ import org.apache.james.mime4j.stream.RawField
 import org.apache.james.modules.MailboxProbeImpl
 import org.apache.james.utils.DataProbeImpl
 import org.junit.jupiter.api.{BeforeEach, Test}
-
-object ThreadGetContract {
-  private def createTestMessage: Message = Message.Builder
-    .of
-    .setSubject("test")
-    .setSender(ANDRE.asString())
-    .setFrom(ANDRE.asString())
-    .setSubject("World domination \r\n" +
-      " and this is also part of the header")
-    .setBody("testmail", StandardCharsets.UTF_8)
-    .build
-}
 
 trait ThreadGetContract {
   @BeforeEach
@@ -165,16 +153,13 @@ trait ThreadGetContract {
       .appendMessageAndGetAppendResult(BOB.asString(), bobPath,
         MessageManager.AppendCommand.from(Message.Builder.of.setSubject("Test")
         .setMessageId("Message-ID")
-          .setField(new RawField("In-Reply-To", "someInReplyTo"))
-          .addField(new RawField("References", "references1"))
-          .addField(new RawField("References", "references2"))
           .setBody("testmail", StandardCharsets.UTF_8)))
 
     val message2: MessageManager.AppendResult = server.getProbe(classOf[MailboxProbeImpl])
       .appendMessageAndGetAppendResult(BOB.asString(), bobPath,
         MessageManager.AppendCommand.from(Message.Builder.of.setSubject("Re: Test")
           .setMessageId("Another-Message-ID")
-          .setField(new RawField("In-Reply-To", "someInReplyTo"))
+          .setField(new RawField("In-Reply-To", "Message-ID"))
           .addField(new RawField("References", "references1"))
           .addField(new RawField("References", "references2"))
           .setBody("testmail", StandardCharsets.UTF_8)))
