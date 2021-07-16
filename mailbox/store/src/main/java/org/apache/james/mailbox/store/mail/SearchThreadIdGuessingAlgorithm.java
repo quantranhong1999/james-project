@@ -29,7 +29,6 @@ import javax.inject.Inject;
 import org.apache.james.mailbox.MailboxManager;
 import org.apache.james.mailbox.MailboxSession;
 import org.apache.james.mailbox.MessageIdManager;
-import org.apache.james.mailbox.exception.MailboxException;
 import org.apache.james.mailbox.exception.ThreadNotFoundException;
 import org.apache.james.mailbox.model.FetchGroup;
 import org.apache.james.mailbox.model.MessageId;
@@ -57,7 +56,7 @@ public class SearchThreadIdGuessingAlgorithm implements ThreadIdGuessingAlgorith
     }
 
     @Override
-    public Mono<ThreadId> guessThreadIdReactive(MessageId messageId, Optional<MimeMessageId> mimeMessageId, Optional<MimeMessageId> inReplyTo, Optional<List<MimeMessageId>> references, Optional<Subject> subject, MailboxSession session) throws MailboxException {
+    public Mono<ThreadId> guessThreadIdReactive(MessageId messageId, Optional<MimeMessageId> mimeMessageId, Optional<MimeMessageId> inReplyTo, Optional<List<MimeMessageId>> references, Optional<Subject> subject, MailboxSession session) {
         MultimailboxesSearchQuery expression = buildSearchQuery(mimeMessageId, inReplyTo, references, subject);
 
         return Flux.from(mailboxManager.search(expression, session, 1))
@@ -69,7 +68,7 @@ public class SearchThreadIdGuessingAlgorithm implements ThreadIdGuessingAlgorith
     }
 
     @Override
-    public Flux<MessageId> getMessageIdsInThread(ThreadId threadId, MailboxSession session) throws MailboxException {
+    public Flux<MessageId> getMessageIdsInThread(ThreadId threadId, MailboxSession session) {
         MultimailboxesSearchQuery expression = MultimailboxesSearchQuery.from(SearchQuery.matchAll()).build();
 
         return Flux.from(mailboxManager.search(expression, session, Integer.MAX_VALUE))
