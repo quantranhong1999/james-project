@@ -41,6 +41,8 @@ public class SearchThreadIdGuessingAlgorithmTest extends ThreadIdGuessingAlgorit
         InMemoryIntegrationResources resources = InMemoryIntegrationResources.defaultResources();
 
         mailboxManager = resources.getMailboxManager();
+        eventBus = resources.getEventBus();
+        messageIdFactory = resources.getMessageIdFactory();
 
         return new InMemoryCombinationManagerTestSystem(
             resources.getMailboxManager(),
@@ -65,5 +67,10 @@ public class SearchThreadIdGuessingAlgorithmTest extends ThreadIdGuessingAlgorit
     @Override
     protected MessageId initNewBasedMessageId() {
         return InMemoryMessageId.of(100);
+    }
+
+    @Override
+    protected MessageId initOtherBasedMessageId() {
+        return InMemoryMessageId.of(1000);
     }
 }

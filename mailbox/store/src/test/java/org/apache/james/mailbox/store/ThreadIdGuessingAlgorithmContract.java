@@ -31,18 +31,21 @@ import java.util.stream.Stream;
 import javax.mail.Flags;
 
 import org.apache.james.core.Username;
+import org.apache.james.events.EventBus;
 import org.apache.james.mailbox.MailboxManager;
 import org.apache.james.mailbox.MailboxSession;
 import org.apache.james.mailbox.MessageManager;
+import org.apache.james.mailbox.events.MailboxIdRegistrationKey;
 import org.apache.james.mailbox.exception.MailboxException;
 import org.apache.james.mailbox.exception.ThreadNotFoundException;
 import org.apache.james.mailbox.model.ByteContent;
 import org.apache.james.mailbox.model.Mailbox;
-import org.apache.james.mailbox.model.MailboxId;
 import org.apache.james.mailbox.model.MailboxPath;
 import org.apache.james.mailbox.model.MessageId;
+import org.apache.james.mailbox.model.MessageMetaData;
 import org.apache.james.mailbox.model.ThreadId;
 import org.apache.james.mailbox.model.UidValidity;
+import org.apache.james.mailbox.store.event.EventFactory;
 import org.apache.james.mailbox.store.mail.MessageMapper;
 import org.apache.james.mailbox.store.mail.ThreadIdGuessingAlgorithm;
 import org.apache.james.mailbox.store.mail.model.MailboxMessage;
@@ -67,15 +70,17 @@ public abstract class ThreadIdGuessingAlgorithmContract {
     public static final Username USER = Username.of("quan");
     private static final UidValidity UID_VALIDITY = UidValidity.of(42);
 
+    protected EventBus eventBus;
+    protected MessageId.Factory messageIdFactory;
     private MailboxManager mailboxManager;
     private MessageManager inbox;
     private MessageMapper messageMapper;
-    private MapperProvider mapperProvider;
     private ThreadIdGuessingAlgorithm testee;
     private MailboxSession mailboxSession;
     private CombinationManagerTestSystem testingData;
     private MessageId newBasedMessageId;
-    private MailboxId mailboxId;
+    private MessageId otherBasedMessageId;
+    private Mailbox mailbox;
 
     protected abstract CombinationManagerTestSystem createTestingData();
 
@@ -87,23 +92,25 @@ public abstract class ThreadIdGuessingAlgorithmContract {
 
     protected abstract MessageId initNewBasedMessageId();
 
+    protected abstract MessageId initOtherBasedMessageId();
+
     @BeforeEach
     void setUp() throws Exception {
         testingData = createTestingData();
         testee = initThreadIdGuessingAlgorithm(testingData);
         newBasedMessageId = initNewBasedMessageId();
+        otherBasedMessageId = initOtherBasedMessageId();
 
         mailboxManager = testingData.getMailboxManager();
         mailboxSession = mailboxManager.createSystemSession(USER);
+        mailboxManager.createMailbox(MailboxPath.inbox(USER), mailboxSession);
         messageMapper = createMessageMapper(mailboxSession);
-        mapperProvider = provideMapper();
-
-        mailboxId = mailboxManager.createMailbox(MailboxPath.inbox(USER), mailboxSession).get();
         inbox = mailboxManager.getMailbox(MailboxPath.inbox(USER), mailboxSession);
+        mailbox = inbox.getMailboxEntity();
     }
 
     @Test
-    void givenNonMailWhenAddAMailThenGuessingThreadIdShouldBasedOnGeneratedMessageId() throws Exception {
+    void givenNonMailWhenAddAMailThenGuessingThreadIdShouldBasedOnGeneratedMessageId() {
         ThreadId threadId = testee.guessThreadIdReactive(newBasedMessageId, Optional.of(new MimeMessageId("abc")), Optional.empty(), Optional.empty(), Optional.of(new Subject("test")), mailboxSession).block();
 
         assertThat(threadId.getBaseMessageId()).isEqualTo(newBasedMessageId);
@@ -234,15 +241,14 @@ public abstract class ThreadIdGuessingAlgorithmContract {
     }
 
     @Test
-    void givenThreeMailsInAThreadThenGetThreadShouldReturnAListWithMessageIdsInThatThread() throws MailboxException {
-        MailboxMessage message1 = createMessage(mailboxId, ThreadId.fromBaseMessageId(newBasedMessageId));
-        MailboxMessage message2 = createMessage(mailboxId, ThreadId.fromBaseMessageId(newBasedMessageId));
-        MailboxMessage message3 = createMessage(mailboxId, ThreadId.fromBaseMessageId(newBasedMessageId));
+    void givenThreeMailsInAThreadThenGetThreadShouldReturnAListWithThreeMessageIdsSortedByArrivalDate() throws MailboxException {
+        MailboxMessage message1 = createMessage(mailbox, ThreadId.fromBaseMessageId(newBasedMessageId));
+        MailboxMessage message2 = createMessage(mailbox, ThreadId.fromBaseMessageId(newBasedMessageId));
+        MailboxMessage message3 = createMessage(mailbox, ThreadId.fromBaseMessageId(newBasedMessageId));
 
-        Mailbox mailbox = new Mailbox(MailboxPath.inbox(USER), UID_VALIDITY, mailboxId);
-        messageMapper.add(mailbox, message1);
-        messageMapper.add(mailbox, message2);
-        messageMapper.add(mailbox, message3);
+        appendMessageThenDispatchAddedEvent(mailbox, message1);
+        appendMessageThenDispatchAddedEvent(mailbox, message2);
+        appendMessageThenDispatchAddedEvent(mailbox, message3);
 
         Flux<MessageId> messageIds = testee.getMessageIdsInThread(ThreadId.fromBaseMessageId(newBasedMessageId), mailboxSession);
 
@@ -251,7 +257,7 @@ public abstract class ThreadIdGuessingAlgorithmContract {
     }
 
     @Test
-    void givenNonMailInAThreadThenGetThreadShouldThrowThreadNotFoundException() throws MailboxException {
+    void givenNonMailInAThreadThenGetThreadShouldThrowThreadNotFoundException() {
         Flux<MessageId> messageIds = testee.getMessageIdsInThread(ThreadId.fromBaseMessageId(newBasedMessageId), mailboxSession);
 
         assertThatThrownBy(() -> testee.getMessageIdsInThread(ThreadId.fromBaseMessageId(newBasedMessageId), mailboxSession).collectList().block())
@@ -259,8 +265,40 @@ public abstract class ThreadIdGuessingAlgorithmContract {
             .isInstanceOf(ThreadNotFoundException.class);
     }
 
-    private SimpleMailboxMessage createMessage(MailboxId mailboxId, ThreadId threadId) {
-        MessageId messageId = mapperProvider.generateMessageId();
+    @Test
+    void givenAMailInAThreadThenGetThreadShouldReturnAListWithOnlyOneMessageIdInThatThread() throws MailboxException {
+        MailboxMessage message1 = createMessage(mailbox, ThreadId.fromBaseMessageId(newBasedMessageId));
+
+        appendMessageThenDispatchAddedEvent(mailbox, message1);
+
+        Flux<MessageId> messageIds = testee.getMessageIdsInThread(ThreadId.fromBaseMessageId(newBasedMessageId), mailboxSession);
+
+        assertThat(messageIds.collectList().block())
+            .containsOnly(message1.getMessageId());
+    }
+
+    @Test
+    void givenTwoDistinctThreadsThenGetThreadShouldNotReturnUnrelatedMails() throws MailboxException {
+        // given message1 and message2 in thread1, message3 in thread2
+        ThreadId threadId1 = ThreadId.fromBaseMessageId(newBasedMessageId);
+        ThreadId threadId2 = ThreadId.fromBaseMessageId(otherBasedMessageId);
+        MailboxMessage message1 = createMessage(mailbox, threadId1);
+        MailboxMessage message2 = createMessage(mailbox, threadId1);
+        MailboxMessage message3 = createMessage(mailbox, threadId2);
+
+        appendMessageThenDispatchAddedEvent(mailbox, message1);
+        appendMessageThenDispatchAddedEvent(mailbox, message2);
+        appendMessageThenDispatchAddedEvent(mailbox, message3);
+
+        // then get thread2 should not return unrelated message1 and message2
+        Flux<MessageId> messageIds = testee.getMessageIdsInThread(ThreadId.fromBaseMessageId(otherBasedMessageId), mailboxSession);
+
+        assertThat(messageIds.collectList().block())
+            .doesNotContain(message1.getMessageId(), message2.getMessageId());
+    }
+
+    private SimpleMailboxMessage createMessage(Mailbox mailbox, ThreadId threadId) {
+        MessageId messageId = messageIdFactory.generate();
         String content = "Some content";
         int bodyStart = 16;
         return new SimpleMailboxMessage(messageId,
@@ -271,6 +309,17 @@ public abstract class ThreadIdGuessingAlgorithmContract {
             new ByteContent(content.getBytes()),
             new Flags(),
             new PropertyBuilder().build(),
-            mailboxId);
+            mailbox.getMailboxId());
+    }
+
+    private void appendMessageThenDispatchAddedEvent(Mailbox mailbox, MailboxMessage mailboxMessage) throws MailboxException {
+        MessageMetaData messageMetaData = messageMapper.add(mailbox, mailboxMessage);
+        eventBus.dispatch(EventFactory.added()
+                .randomEventId()
+                .mailboxSession(mailboxSession)
+                .mailbox(mailbox)
+                .addMetaData(messageMetaData)
+                .build(),
+            new MailboxIdRegistrationKey(mailbox.getMailboxId())).block();
     }
 }

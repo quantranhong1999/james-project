@@ -69,13 +69,16 @@ public class SearchThreadIdGuessingAlgorithm implements ThreadIdGuessingAlgorith
 
     @Override
     public Flux<MessageId> getMessageIdsInThread(ThreadId threadId, MailboxSession session) {
-        MultimailboxesSearchQuery expression = MultimailboxesSearchQuery.from(SearchQuery.matchAll()).build();
+        SearchQuery searchQuery = SearchQuery.builder()
+            .andCriteria(SearchQuery.threadId(threadId))
+            .sorts(new SearchQuery.Sort(SearchQuery.Sort.SortClause.Arrival, SearchQuery.Sort.Order.NATURAL))
+            .build();
+
+        MultimailboxesSearchQuery expression = MultimailboxesSearchQuery
+            .from(searchQuery)
+            .build();
 
         return Flux.from(mailboxManager.search(expression, session, Integer.MAX_VALUE))
-            .collectList()
-            .flatMapMany(messageIds -> messageIdManager.getMessagesReactive(messageIds, FetchGroup.MINIMAL, session))
-            .filter(messageResult -> messageResult.getThreadId().equals(threadId))
-            .map(MessageResult::getMessageId)
             .switchIfEmpty(Mono.error(() -> new ThreadNotFoundException(threadId)));
     }
 
