@@ -17,7 +17,7 @@
  * under the License.                                             *
  ******************************************************************/
 
-package org.apache.james.jmap.mail
+package org.apache.james.jmap.core
 
 import java.time.ZonedDateTime
 import java.util.UUID
@@ -25,6 +25,10 @@ import java.util.UUID
 import org.apache.james.jmap.change.TypeName
 
 case class PushSubscriptionId(value: UUID)
+
+object DeviceClientId {
+  def asJavaString(deviceClientId: DeviceClientId):String = deviceClientId.value
+}
 
 case class DeviceClientId(value: String) extends AnyVal
 

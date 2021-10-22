@@ -17,14 +17,16 @@
  * under the License.                                             *
  ******************************************************************/
 
-package org.apache.james.jmap.pushsubscription
+package org.apache.james.jmap.memory.pushsubscription
+
 import java.time.ZonedDateTime
 import java.util.UUID
 
 import com.google.common.base.Preconditions
 import org.apache.james.core.Username
+import org.apache.james.jmap.api.pushsubscription.PushSubscriptionRepository
 import org.apache.james.jmap.change.TypeName
-import org.apache.james.jmap.mail.{PushSubscription, PushSubscriptionCreationRequest, PushSubscriptionExpiredTime, PushSubscriptionId, VerificationCode}
+import org.apache.james.jmap.core.{PushSubscription, PushSubscriptionCreationRequest, PushSubscriptionExpiredTime, PushSubscriptionId, VerificationCode}
 import org.reactivestreams.Publisher
 import reactor.core.scala.publisher.{SFlux, SMono}
 

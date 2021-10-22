@@ -17,27 +17,32 @@
  * under the License.                                             *
  ******************************************************************/
 
-package org.apache.james.jmap.pushsubscription
+package org.apache.james.jmap.api.pushsubscription;
 
-import java.time.ZonedDateTime
+import java.time.ZonedDateTime;
+import java.util.Set;
 
-import org.apache.james.core.Username
-import org.apache.james.jmap.change.TypeName
-import org.apache.james.jmap.mail.{PushSubscription, PushSubscriptionCreationRequest, PushSubscriptionId}
-import org.reactivestreams.Publisher
+import org.apache.james.core.Username;
+import org.apache.james.jmap.change.TypeName;
+import org.apache.james.jmap.core.PushSubscription;
+import org.apache.james.jmap.core.PushSubscriptionCreationRequest;
+import org.apache.james.jmap.core.PushSubscriptionId;
+import org.reactivestreams.Publisher;
 
-trait PushSubscriptionRepository {
-  def save(username: Username, pushSubscriptionCreationRequest: PushSubscriptionCreationRequest): Publisher[PushSubscriptionId]
+public interface PushSubscriptionRepository {
+    Integer EXPIRES_TIME_MAX_DAY = 7;
 
-  def updateExpireTime(username: Username, id: PushSubscriptionId, newExpire: ZonedDateTime): Publisher[Unit]
+    Publisher<PushSubscriptionId> save(Username username, PushSubscriptionCreationRequest pushSubscriptionCreationRequest);
 
-  def updateTypes(username: Username, id: PushSubscriptionId, types: Seq[TypeName]): Publisher[Unit]
+    Publisher<Void> updateExpireTime(Username username, PushSubscriptionId id, ZonedDateTime newExpire);
 
-  def revoke(username: Username, id: PushSubscriptionId): Publisher[Unit]
+    Publisher<Void> updateTypes(Username username, PushSubscriptionId id, Set<TypeName> types);
 
-  def get(username: Username, ids: Seq[PushSubscriptionId]): Publisher[PushSubscription]
+    Publisher<Void> revoke(Username username, PushSubscriptionId id);
 
-  def list(username: Username): Publisher[PushSubscription]
+    Publisher<PushSubscription> get(Username username, Set<PushSubscriptionId> ids);
 
-  def validateVerificationCode(username: Username, id: PushSubscriptionId): Publisher[Unit]
+    Publisher<PushSubscription> list(Username username);
+
+    Publisher<Void> validateVerificationCode(Username username, PushSubscriptionId id);
 }
