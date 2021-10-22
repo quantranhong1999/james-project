@@ -17,9 +17,9 @@
  * under the License.                                             *
  ******************************************************************/
 
-package org.apache.james.jmap.pushsubscription
+package org.apache.james.jmap.api.pushsubscription;
 
-trait PushSubscriptionRepositoryContract {
-  def testee: PushSubscriptionRepository
-  // TODO write tests
+public interface PushSubscriptionRepositoryContract {
+    PushSubscriptionRepository testee();
+    // TODO write tests
 }
