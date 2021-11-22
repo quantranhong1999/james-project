@@ -19,6 +19,10 @@
 
 package org.apache.james.jmap.api.identity
 
+import java.nio.charset.StandardCharsets
+import java.util.UUID
+import javax.inject.Inject
+
 import com.google.common.collect.ImmutableList
 import org.apache.james.core.{MailAddress, Username}
 import org.apache.james.jmap.api.identity.IdentityOriginWrapper.IdentityOrigin
@@ -29,19 +33,15 @@ import org.reactivestreams.Publisher
 import reactor.core.scala.publisher.{SFlux, SMono}
 import reactor.core.scheduler.Schedulers
 
-import java.nio.charset.StandardCharsets
-import java.util.UUID
-import javax.inject.Inject
+import scala.jdk.CollectionConverters._
 import scala.util.Try
 
-import scala.jdk.CollectionConverters._
-
 case class IdentityCreationRequest(name: Option[IdentityName],
-                                   email: MailAddress,
-                                   replyTo: Option[List[EmailAddress]],
-                                   bcc: Option[List[EmailAddress]],
-                                   textSignature: Option[TextSignature],
-                                   htmlSignature: Option[HtmlSignature]) {
+                                    email: MailAddress,
+                                    replyTo: Option[List[EmailAddress]],
+                                    bcc: Option[List[EmailAddress]],
+                                    textSignature: Option[TextSignature],
+                                    htmlSignature: Option[HtmlSignature]) {
   def asIdentity(id: IdentityId): Identity = Identity(id, name.getOrElse(IdentityName.DEFAULT), email, replyTo, bcc, textSignature.getOrElse(TextSignature.DEFAULT), htmlSignature.getOrElse(HtmlSignature.DEFAULT), mayDelete = MayDeleteIdentity(true))
 }
 
@@ -115,6 +115,9 @@ class DefaultIdentitySupplier @Inject()(canSendFrom: CanSendFrom, usersRepositor
   def userCanSendFrom(username: Username, mailAddress: MailAddress): Boolean =
     canSendFrom.userCanSendFrom(username, usersRepository.getUsername(mailAddress))
 
+  def isServerSetIdentity(username: Username, id: IdentityId): Boolean =
+    listIdentities(username).map(_.id).contains(id)
+
   private def from(address: MailAddress): Option[IdentityId] =
     Try(UUID.nameUUIDFromBytes(address.asString().getBytes(StandardCharsets.UTF_8)))
       .toEither
@@ -159,10 +162,21 @@ class IdentityRepository @Inject()(customIdentityDao: CustomIdentityDAO, identit
             .`then`()
       }
 
-  def delete(username: Username, ids: Seq[IdentityId]): Publisher[Unit] = customIdentityDao.delete(username, ids)
+  def delete(username: Username, ids: Seq[IdentityId]): Publisher[Unit] =
+    SMono.just(ids)
+      .handle[Seq[IdentityId]]{
+        case (ids, sink) => if (identityFactory.isServerSetIdentity(username, ids.head)) {
+          sink.error(IdentityForbiddenDeleteException(ids.head))
+        } else {
+          sink.next(ids)
+        }
+      }
+      .flatMap(ids => SMono.fromPublisher(customIdentityDao.delete(username, ids)))
+      .subscribeOn(Schedulers.elastic())
 }
 
 case class IdentityNotFoundException(id: IdentityId) extends RuntimeException(s"$id could not be found")
+case class IdentityForbiddenDeleteException(id: IdentityId) extends IllegalArgumentException(s"User do not have permission to delete $id")
 
 case class IdentityOriginWrapper(origin: IdentityOrigin, identity: Identity)
 
