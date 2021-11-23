@@ -1428,17 +1428,11 @@ trait IdentitySetContract {
            |				"notDestroyed": {
            |					"$serverIdentitiesId1": {
            |						"type": "forbidden",
-           |						"description": "User do not have permission to delete IdentityId($serverIdentitiesId1)",
-           |						"properties": [
-           |							"id"
-           |						]
+           |						"description": "User do not have permission to delete IdentityId($serverIdentitiesId1)"
            |					},
            |					"$defaultServerSetIdentity": {
            |						"type": "forbidden",
-           |						"description": "User do not have permission to delete IdentityId($defaultServerSetIdentity)",
-           |						"properties": [
-           |							"id"
-           |						]
+           |						"description": "User do not have permission to delete IdentityId($defaultServerSetIdentity)"
            |					}
            |				}
            |			},
@@ -1600,10 +1594,7 @@ trait IdentitySetContract {
            |				"notDestroyed": {
            |					"$defaultServerSetIdentity": {
            |						"type": "forbidden",
-           |						"description": "User do not have permission to delete IdentityId($defaultServerSetIdentity)",
-           |						"properties": [
-           |							"id"
-           |						]
+           |						"description": "User do not have permission to delete IdentityId($defaultServerSetIdentity)"
            |					}
            |				}
            |			},
