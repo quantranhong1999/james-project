@@ -89,8 +89,6 @@ class DSNRelayTest {
         jamesServer = TemporaryJamesServer.builder()
             .withBase(SMTP_AND_IMAP_MODULE)
             .withOverrides(binder -> binder.bind(DNSService.class).toInstance(inMemoryDNSService))
-            .withSmtpConfiguration(SmtpConfiguration.builder()
-                .withAutorizedAddresses("0.0.0.0/0.0.0.0"))
             .withMailetContainer(MailetContainer.builder()
                 .putProcessor(CommonProcessors.simpleRoot())
                 .putProcessor(CommonProcessors.error())
@@ -100,7 +98,8 @@ class DSNRelayTest {
                 .addHook(DSNEhloHook.class.getName())
                 .addHook(DSNMailParameterHook.class.getName())
                 .addHook(DSNRcptParameterHook.class.getName())
-                .addHook(DSNMessageHook.class.getName()))
+                .addHook(DSNMessageHook.class.getName())
+                .withAutorizedAddresses("0.0.0.0/0.0.0.0"))
             .build(temporaryFolder);
         jamesServer.start();
 
