@@ -588,6 +588,7 @@ public interface Pop3ServerContract {
         pop3Client2.disconnect();
     }
 
+    
     @Test
     default void deletingAMessageDeletesOnlyOne(GuiceJamesServer server) throws Exception {
         server.getProbe(DataProbeImpl.class).fluent()
