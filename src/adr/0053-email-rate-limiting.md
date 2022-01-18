@@ -46,7 +46,7 @@ email count.
     - In memory implementation: suitable for single instance deployments.
     - [Redis](https://redis.io) based implementation: suitable for distributed deployments.
 
-We can base on [RateLimitJ](https://github.com/mokies/ratelimitj) to provide the implementation.
+We will base on [RateLimitJ](https://github.com/mokies/ratelimitj) to provide the implementation.
 It is a Java library for rate limiting, assembled using extensible storage (Redis) and application framework adaptors. 
 Its library's interfaces support thread-safe sync, async, and reactive usage patterns which is suitable for our reactive pipeline.
 
