@@ -590,7 +590,7 @@ public class StoreMailboxManager implements MailboxManager {
                 .asUserBound();
             locker.executeWithLock(from, (LockAwareExecution<Void>) () -> {
                 block(mapper.findMailboxWithPathLike(query)
-                    .flatMap(sub -> {
+                    .concatMap(sub -> {
                         String subOriginalName = sub.getName();
                         String subNewName = newMailboxPath.getName() + subOriginalName.substring(from.getName().length());
                         MailboxPath fromPath = new MailboxPath(from, subOriginalName);
@@ -602,7 +602,7 @@ public class StoreMailboxManager implements MailboxManager {
                             })
                             .retryWhen(Retry.backoff(5, Duration.ofMillis(10)))
                             .then(Mono.fromRunnable(() -> LOGGER.debug("Rename mailbox sub-mailbox {} to {}", subOriginalName, subNewName)));
-                    }, LOW_CONCURRENCY)
+                    })
                     .then());
 
                 return null;
