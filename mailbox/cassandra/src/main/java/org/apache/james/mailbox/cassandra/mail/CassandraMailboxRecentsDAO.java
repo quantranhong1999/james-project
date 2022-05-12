@@ -31,6 +31,7 @@ import org.apache.james.mailbox.MessageUid;
 import org.apache.james.mailbox.cassandra.ids.CassandraId;
 import org.apache.james.mailbox.cassandra.table.CassandraMailboxRecentsTable;
 
+import com.datastax.driver.core.BatchStatement;
 import com.datastax.driver.core.BoundStatement;
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.Session;
@@ -101,6 +102,17 @@ public class CassandraMailboxRecentsDAO {
             .setLong(CassandraMailboxRecentsTable.RECENT_MESSAGE_UID, messageUid.asLong()));
     }
 
+    public Mono<Void> removeFromRecent(CassandraId mailboxId, Flux<MessageUid> uids) {
+        return uids
+            .window(65535)
+            .flatMap(partialUidsFlux -> partialUidsFlux.reduce(new BatchStatement(BatchStatement.Type.UNLOGGED), (batch, uid) ->
+                batch.add(deleteStatement.bind()
+                    .setUUID(CassandraMailboxRecentsTable.MAILBOX_ID, mailboxId.asUuid())
+                    .setLong(CassandraMailboxRecentsTable.RECENT_MESSAGE_UID, uid.asLong()))))
+            .flatMap(cassandraAsyncExecutor::executeVoid)
+            .then();
+    }
+
     public Mono<Void> delete(CassandraId mailboxId) {
         return cassandraAsyncExecutor.executeVoid(deleteAllStatement.bind()
             .setUUID(CassandraMailboxRecentsTable.MAILBOX_ID, mailboxId.asUuid()));
@@ -110,5 +122,16 @@ public class CassandraMailboxRecentsDAO {
         return cassandraAsyncExecutor.executeVoid(addStatement.bind()
             .setUUID(CassandraMailboxRecentsTable.MAILBOX_ID, mailboxId.asUuid())
             .setLong(CassandraMailboxRecentsTable.RECENT_MESSAGE_UID, messageUid.asLong()));
+    }
+
+    public Mono<Void> addToRecent(CassandraId mailboxId, Flux<MessageUid> uids) {
+        return uids
+            .window(65535)
+            .flatMap(partialUidsFlux -> partialUidsFlux.reduce(new BatchStatement(BatchStatement.Type.UNLOGGED), (batch, uid) ->
+                batch.add(addStatement.bind()
+                    .setUUID(CassandraMailboxRecentsTable.MAILBOX_ID, mailboxId.asUuid())
+                    .setLong(CassandraMailboxRecentsTable.RECENT_MESSAGE_UID, uid.asLong()))))
+            .flatMap(cassandraAsyncExecutor::executeVoid)
+            .then();
     }
 }
