@@ -207,7 +207,7 @@ public interface MessageMapper extends Mapper {
     MessageMetaData copy(Mailbox mailbox, MailboxMessage original) throws MailboxException;
 
     default List<MessageMetaData> copy(Mailbox mailbox, List<MailboxMessage> original) throws MailboxException {
-        return original.parallelStream()
+        return original.stream()
             .map(Throwing.<MailboxMessage, MessageMetaData>function(message -> copy(mailbox, message)).sneakyThrow())
             .collect(ImmutableList.toImmutableList());
     }
@@ -222,7 +222,7 @@ public interface MessageMapper extends Mapper {
     MessageMetaData move(Mailbox mailbox, MailboxMessage original) throws MailboxException;
 
     default List<MessageMetaData> move(Mailbox mailbox, List<MailboxMessage> original) throws MailboxException {
-        return original.parallelStream()
+        return original.stream()
             .map(Throwing.<MailboxMessage, MessageMetaData>function(message -> move(mailbox, message)).sneakyThrow())
             .collect(ImmutableList.toImmutableList());
     }
