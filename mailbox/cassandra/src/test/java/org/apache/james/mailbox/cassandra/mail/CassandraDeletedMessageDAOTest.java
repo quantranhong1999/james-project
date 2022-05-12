@@ -35,6 +35,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import reactor.core.publisher.Flux;
+
 class CassandraDeletedMessageDAOTest {
     private static final CassandraId MAILBOX_ID = CassandraId.of(UUID.fromString("110e8400-e29b-11d4-a716-446655440000"));
     private static final MessageUid UID_1 = MessageUid.of(1);
@@ -66,8 +68,7 @@ class CassandraDeletedMessageDAOTest {
 
     @Test
     void addDeletedMessageShouldThenBeReportedAsDeletedMessage() {
-        testee.addDeleted(MAILBOX_ID, UID_1).block();
-        testee.addDeleted(MAILBOX_ID, UID_2).block();
+        testee.addDeleted(MAILBOX_ID, Flux.fromIterable(List.of(UID_1, UID_2))).block();
 
         List<MessageUid> result = testee.retrieveDeletedMessage(MAILBOX_ID, MessageRange.all())
                 .collectList()
@@ -78,8 +79,7 @@ class CassandraDeletedMessageDAOTest {
 
     @Test
     void retrieveDeletedMessageShouldNotReturnDeletedEntries() {
-        testee.addDeleted(MAILBOX_ID, UID_1).block();
-        testee.addDeleted(MAILBOX_ID, UID_2).block();
+        testee.addDeleted(MAILBOX_ID, Flux.fromIterable(List.of(UID_1, UID_2))).block();
 
         testee.removeAll(MAILBOX_ID).block();
 
@@ -122,8 +122,7 @@ class CassandraDeletedMessageDAOTest {
 
     @Test
     void removeDeletedMessageShouldNotAffectOtherMessage() {
-        testee.addDeleted(MAILBOX_ID, UID_2).block();
-        testee.addDeleted(MAILBOX_ID, UID_1).block();
+        testee.addDeleted(MAILBOX_ID, Flux.fromIterable(List.of(UID_2, UID_1))).block();
 
         testee.removeDeleted(MAILBOX_ID, UID_1).block();
 
@@ -150,12 +149,7 @@ class CassandraDeletedMessageDAOTest {
     }
 
     private void addMessageForRetrieveTest() {
-        testee.addDeleted(MAILBOX_ID, UID_1).block();
-        testee.addDeleted(MAILBOX_ID, UID_2).block();
-        testee.addDeleted(MAILBOX_ID, UID_3).block();
-        testee.addDeleted(MAILBOX_ID, UID_4).block();
-        testee.addDeleted(MAILBOX_ID, UID_7).block();
-        testee.addDeleted(MAILBOX_ID, UID_8).block();
+        testee.addDeleted(MAILBOX_ID, Flux.fromIterable(List.of(UID_1, UID_2, UID_3, UID_4, UID_7, UID_8))).block();
     }
 
     @Test

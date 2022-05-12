@@ -37,6 +37,7 @@ import org.apache.james.mailbox.MessageUid;
 import org.apache.james.mailbox.cassandra.ids.CassandraId;
 import org.apache.james.mailbox.model.MessageRange;
 
+import com.datastax.driver.core.BatchStatement;
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.Session;
@@ -123,10 +124,32 @@ public class CassandraDeletedMessageDAO {
                 .setLong(UID, uid.asLong()));
     }
 
+    public Mono<Void> addDeleted(CassandraId cassandraId, Flux<MessageUid> uids) {
+        return uids
+            .window(65535)
+            .flatMap(partialUidsFlux -> partialUidsFlux.reduce(new BatchStatement(BatchStatement.Type.UNLOGGED), (batch, uid) ->
+                batch.add(addStatement.bind()
+                    .setUUID(MAILBOX_ID, cassandraId.asUuid())
+                    .setLong(UID, uid.asLong()))))
+            .flatMap(cassandraAsyncExecutor::executeVoid)
+            .then();
+    }
+
     public Mono<Void> removeDeleted(CassandraId cassandraId, MessageUid uid) {
         return cassandraAsyncExecutor.executeVoid(deleteStatement.bind()
             .setUUID(MAILBOX_ID, cassandraId.asUuid())
             .setLong(UID, uid.asLong()));
+    }
+
+    public Mono<Void> removeDeleted(CassandraId cassandraId, Flux<MessageUid> uids) {
+        return uids
+            .window(65535)
+            .flatMap(partialUidsFlux -> partialUidsFlux.reduce(new BatchStatement(BatchStatement.Type.UNLOGGED), (batch, uid) ->
+                batch.add(deleteStatement.bind()
+                    .setUUID(MAILBOX_ID, cassandraId.asUuid())
+                    .setLong(UID, uid.asLong()))))
+            .flatMap(cassandraAsyncExecutor::executeVoid)
+            .then();
     }
 
     public Mono<Void> removeAll(CassandraId cassandraId) {
