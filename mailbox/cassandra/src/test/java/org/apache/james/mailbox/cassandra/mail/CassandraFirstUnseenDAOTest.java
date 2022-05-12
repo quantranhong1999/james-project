@@ -22,6 +22,8 @@ package org.apache.james.mailbox.cassandra.mail;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 
+import java.util.List;
+
 import org.apache.james.backends.cassandra.CassandraCluster;
 import org.apache.james.backends.cassandra.CassandraClusterExtension;
 import org.apache.james.mailbox.MessageUid;
@@ -30,6 +32,8 @@ import org.apache.james.mailbox.cassandra.modules.CassandraFirstUnseenModule;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+
+import reactor.core.publisher.Flux;
 
 class CassandraFirstUnseenDAOTest {
     private static final CassandraId MAILBOX_ID = CassandraId.timeBased();
@@ -72,8 +76,7 @@ class CassandraFirstUnseenDAOTest {
 
     @Test
     void removeAllShouldDeleteAllUidEntries() {
-        testee.addUnread(MAILBOX_ID, UID_1).block();
-        testee.addUnread(MAILBOX_ID, UID_2).block();
+        testee.addUnread(MAILBOX_ID, Flux.fromIterable(List.of(UID_1, UID_2))).block();
 
         testee.removeAll(MAILBOX_ID).block();
 
@@ -88,9 +91,7 @@ class CassandraFirstUnseenDAOTest {
 
     @Test
     void retrieveFirstUnreadShouldReturnLowestUnreadUid() {
-        testee.addUnread(MAILBOX_ID, UID_1).block();
-
-        testee.addUnread(MAILBOX_ID, UID_2).block();
+        testee.addUnread(MAILBOX_ID, Flux.fromIterable(List.of(UID_1, UID_2))).block();
 
         assertThat(testee.retrieveFirstUnread(MAILBOX_ID).block())
             .isEqualByComparingTo(UID_1);
@@ -98,9 +99,7 @@ class CassandraFirstUnseenDAOTest {
 
     @Test
     void retrieveFirstUnreadShouldBeOrderIndependent() {
-        testee.addUnread(MAILBOX_ID, UID_2).block();
-
-        testee.addUnread(MAILBOX_ID, UID_1).block();
+        testee.addUnread(MAILBOX_ID, Flux.fromIterable(List.of(UID_1, UID_2))).block();
 
         assertThat(testee.retrieveFirstUnread(MAILBOX_ID).block())
             .isEqualByComparingTo(UID_1);
@@ -136,8 +135,7 @@ class CassandraFirstUnseenDAOTest {
 
     @Test
     void removeUnreadShouldRemoveLastUnread() {
-        testee.addUnread(MAILBOX_ID, UID_1).block();
-        testee.addUnread(MAILBOX_ID, UID_2).block();
+        testee.addUnread(MAILBOX_ID, Flux.fromIterable(List.of(UID_1, UID_2))).block();
 
         testee.removeUnread(MAILBOX_ID, UID_2).block();
 
@@ -147,8 +145,7 @@ class CassandraFirstUnseenDAOTest {
 
     @Test
     void removeUnreadShouldHaveNoEffectWhenNotLast() {
-        testee.addUnread(MAILBOX_ID, UID_1).block();
-        testee.addUnread(MAILBOX_ID, UID_2).block();
+        testee.addUnread(MAILBOX_ID, Flux.fromIterable(List.of(UID_1, UID_2))).block();
 
         testee.removeUnread(MAILBOX_ID, UID_1).block();
 
