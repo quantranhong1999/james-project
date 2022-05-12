@@ -77,6 +77,7 @@ import org.apache.james.mailbox.model.MessageId;
 import org.apache.james.mailbox.model.ThreadId;
 import org.apache.james.mailbox.model.UpdatedFlags;
 
+import com.datastax.driver.core.BatchStatement;
 import com.datastax.driver.core.BoundStatement;
 import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.Row;
@@ -241,6 +242,17 @@ public class CassandraMessageIdToImapUidDAO {
         return cassandraAsyncExecutor.executeVoid(delete.bind()
                 .setUUID(MESSAGE_ID, messageId.get())
                 .setUUID(MAILBOX_ID, mailboxId.asUuid()));
+    }
+
+    public Mono<Void> delete(CassandraMessageId messageId, Flux<CassandraId> mailboxIds) {
+        return mailboxIds
+            .window(65535)
+            .flatMap(partialUidsFlux -> partialUidsFlux.reduce(new BatchStatement(BatchStatement.Type.UNLOGGED), (batch, mailboxId) ->
+                batch.add(delete.bind()
+                    .setUUID(MESSAGE_ID, messageId.get())
+                    .setUUID(MAILBOX_ID, mailboxId.asUuid()))))
+            .flatMap(cassandraAsyncExecutor::executeVoid)
+            .then();
     }
 
     public Mono<Void> insert(CassandraMessageMetadata metadata) {

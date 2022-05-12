@@ -204,11 +204,8 @@ public class CassandraMessageMapper implements MessageMapper {
     }
 
     private Mono<Void> deleteAndHandleIndexUpdates(ComposedMessageIdWithMetaData composedMessageIdWithMetaData) {
-        ComposedMessageId composedMessageId = composedMessageIdWithMetaData.getComposedMessageId();
-        CassandraId mailboxId = (CassandraId) composedMessageId.getMailboxId();
-
         return delete(composedMessageIdWithMetaData)
-             .then(indexTableHandler.updateIndexOnDelete(composedMessageIdWithMetaData, mailboxId));
+             .then(indexTableHandler.updateIndexOnDelete(composedMessageIdWithMetaData));
     }
 
     private Mono<Void> deleteAndHandleIndexUpdates(Collection<ComposedMessageIdWithMetaData> composedMessageIdWithMetaData) {

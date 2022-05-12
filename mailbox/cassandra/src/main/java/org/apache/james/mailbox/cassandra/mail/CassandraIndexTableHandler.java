@@ -62,8 +62,9 @@ public class CassandraIndexTableHandler {
         this.deletedMessageDAO = deletedMessageDAO;
     }
 
-    public Mono<Void> updateIndexOnDelete(ComposedMessageIdWithMetaData composedMessageIdWithMetaData, CassandraId mailboxId) {
+    public Mono<Void> updateIndexOnDelete(ComposedMessageIdWithMetaData composedMessageIdWithMetaData) {
         MessageUid uid = composedMessageIdWithMetaData.getComposedMessageId().getUid();
+        CassandraId mailboxId = (CassandraId) composedMessageIdWithMetaData.getComposedMessageId().getMailboxId();
 
         return Flux.mergeDelayError(Queues.XS_BUFFER_SIZE,
                 updateFirstUnseenOnDelete(mailboxId, composedMessageIdWithMetaData.getFlags(), composedMessageIdWithMetaData.getComposedMessageId().getUid()),

@@ -250,10 +250,8 @@ public class CassandraMessageIdMapper implements MessageIdMapper {
     }
 
     private Mono<Void> retrieveAndDeleteIndices(CassandraMessageId messageId, Optional<CassandraId> mailboxId) {
-        return imapUidDAO.retrieve(messageId, mailboxId, chooseReadConsistencyUponWrites())
-            .map(CassandraMessageMetadata::getComposedMessageId)
-            .flatMap(this::deleteIds, ReactorUtils.DEFAULT_CONCURRENCY)
-            .then();
+        return deleteIds(imapUidDAO.retrieve(messageId, mailboxId, chooseReadConsistencyUponWrites())
+            .map(CassandraMessageMetadata::getComposedMessageId));
     }
 
     @Override
@@ -263,13 +261,21 @@ public class CassandraMessageIdMapper implements MessageIdMapper {
             .block();
     }
 
-    private Mono<Void> deleteIds(ComposedMessageIdWithMetaData metaData) {
-        CassandraMessageId messageId = (CassandraMessageId) metaData.getComposedMessageId().getMessageId();
-        CassandraId mailboxId = (CassandraId) metaData.getComposedMessageId().getMailboxId();
-        return Flux.merge(
-                imapUidDAO.delete(messageId, mailboxId),
-                messageIdDAO.delete(mailboxId, metaData.getComposedMessageId().getUid()))
-            .then(indexTableHandler.updateIndexOnDelete(metaData, mailboxId));
+    private Mono<Void> deleteIds(Flux<ComposedMessageIdWithMetaData> metaDataFlux) {
+        Flux<Void> deleteInMessageIdTable = metaDataFlux.groupBy(item -> item.getComposedMessageId().getMailboxId())
+            .flatMap(item -> {
+                CassandraId mailboxId = (CassandraId) item.key();
+                return messageIdDAO.delete(mailboxId, item.map(metadata -> metadata.getComposedMessageId().getUid()));
+            });
+
+        Flux<Void> deleteInImapUidTable = metaDataFlux.groupBy(item -> item.getComposedMessageId().getMessageId())
+            .flatMap(item -> {
+                CassandraMessageId messageId = (CassandraMessageId) item.key();
+                return imapUidDAO.delete(messageId, item.map(metadata -> (CassandraId) metadata.getComposedMessageId().getMailboxId()));
+            });
+
+        return Flux.merge(deleteInMessageIdTable, deleteInImapUidTable)
+            .then(metaDataFlux.flatMap(indexTableHandler::updateIndexOnDelete).then());
     }
 
     @Override

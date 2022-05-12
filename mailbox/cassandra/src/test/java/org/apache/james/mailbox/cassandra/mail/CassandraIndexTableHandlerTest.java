@@ -200,8 +200,7 @@ class CassandraIndexTableHandlerTest {
                 new ComposedMessageId(MAILBOX_ID, CASSANDRA_MESSAGE_ID, MESSAGE_UID),
                 new Flags(Flags.Flag.RECENT),
                 MODSEQ,
-                ThreadId.fromBaseMessageId(CASSANDRA_MESSAGE_ID)),
-            MAILBOX_ID).block();
+                ThreadId.fromBaseMessageId(CASSANDRA_MESSAGE_ID))).block();
 
         Long actual = mailboxCounterDAO.countMessagesInMailbox(mailbox).block();
         assertThat(actual).isEqualTo(0);
@@ -218,8 +217,7 @@ class CassandraIndexTableHandlerTest {
                 new ComposedMessageId(MAILBOX_ID, CASSANDRA_MESSAGE_ID, MESSAGE_UID),
                 new Flags(),
                 MODSEQ,
-                ThreadId.fromBaseMessageId(CASSANDRA_MESSAGE_ID)),
-            MAILBOX_ID).block();
+                ThreadId.fromBaseMessageId(CASSANDRA_MESSAGE_ID))).block();
 
         Long actual = mailboxCounterDAO.countUnseenMessagesInMailbox(mailbox).block();
         assertThat(actual).isEqualTo(0);
@@ -236,8 +234,7 @@ class CassandraIndexTableHandlerTest {
                 new ComposedMessageId(MAILBOX_ID, CASSANDRA_MESSAGE_ID, MESSAGE_UID),
                 new Flags(Flags.Flag.SEEN),
                 MODSEQ,
-                ThreadId.fromBaseMessageId(CASSANDRA_MESSAGE_ID)),
-            MAILBOX_ID).block();
+                ThreadId.fromBaseMessageId(CASSANDRA_MESSAGE_ID))).block();
 
         Long actual = mailboxCounterDAO.countUnseenMessagesInMailbox(mailbox).block();
         assertThat(actual).isEqualTo(1);
@@ -254,8 +251,7 @@ class CassandraIndexTableHandlerTest {
                 new ComposedMessageId(MAILBOX_ID, CASSANDRA_MESSAGE_ID, MESSAGE_UID),
                 new Flags(Flags.Flag.RECENT),
                 MODSEQ,
-                ThreadId.fromBaseMessageId(CASSANDRA_MESSAGE_ID)),
-            MAILBOX_ID).block();
+                ThreadId.fromBaseMessageId(CASSANDRA_MESSAGE_ID))).block();
 
         assertThat(mailboxRecentsDAO.getRecentMessageUidsInMailbox(MAILBOX_ID)
             .collectList()
@@ -275,8 +271,7 @@ class CassandraIndexTableHandlerTest {
                 new ComposedMessageId(MAILBOX_ID, CASSANDRA_MESSAGE_ID, MESSAGE_UID),
                 new Flags(),
                 MODSEQ,
-                ThreadId.fromBaseMessageId(CASSANDRA_MESSAGE_ID)),
-            MAILBOX_ID).block();
+                ThreadId.fromBaseMessageId(CASSANDRA_MESSAGE_ID))).block();
 
         assertThat(mailboxRecentsDAO.getRecentMessageUidsInMailbox(MAILBOX_ID)
             .collectList()
@@ -294,8 +289,7 @@ class CassandraIndexTableHandlerTest {
                 new ComposedMessageId(MAILBOX_ID, CASSANDRA_MESSAGE_ID, MESSAGE_UID),
                 new Flags(Flags.Flag.DELETED),
                 MODSEQ,
-                ThreadId.fromBaseMessageId(CASSANDRA_MESSAGE_ID)),
-            MAILBOX_ID).block();
+                ThreadId.fromBaseMessageId(CASSANDRA_MESSAGE_ID))).block();
 
         assertThat(
             deletedMessageDAO
@@ -664,7 +658,7 @@ class CassandraIndexTableHandlerTest {
             new ComposedMessageId(MAILBOX_ID, CASSANDRA_MESSAGE_ID, MESSAGE_UID),
             new Flags(),
             MODSEQ,
-            ThreadId.fromBaseMessageId(CASSANDRA_MESSAGE_ID)), MAILBOX_ID).block();
+            ThreadId.fromBaseMessageId(CASSANDRA_MESSAGE_ID))).block();
 
         Boolean actual = firstUnseenDAO.retrieveFirstUnread(MAILBOX_ID).hasElement().block();
         assertThat(actual).isFalse();
