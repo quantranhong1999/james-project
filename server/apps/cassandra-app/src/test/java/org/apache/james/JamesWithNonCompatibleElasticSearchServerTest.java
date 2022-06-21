@@ -59,7 +59,7 @@ class JamesWithNonCompatibleElasticSearchServerTest {
                     .containsOnly(CheckResult.builder()
                         .checkName(ElasticSearchStartUpCheck.CHECK_NAME)
                         .resultType(StartUpCheck.ResultType.BAD)
-                        .description("Error when checking ES version: co.elastic.clients.transport.TransportException: [es/info] Missing [X-Elastic-Product] header. Please check that you are connecting to an Elasticsearch instance, and that any networking filters are preserving that header.")
+                        .description("Error when checking ES version: Missing required property 'OpenSearchVersionInfo.distribution'")
                         .build()));
 
         assertThat(server.isStarted())
