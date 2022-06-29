@@ -61,24 +61,19 @@ class ReadOnlyUsersLDAPRepositoryTest {
     static final String BAD_PASSWORD = "badpassword";
     public static final String SUPPORTS_VIRTUAL_HOSTING = "supportsVirtualHosting";
 
-    static LdapGenericContainer ldapContainer = LdapGenericContainer.builder()
-        .domain(DOMAIN)
-        .password(ADMIN_PASSWORD)
-        .build();
-
     @BeforeAll
     static void setUpAll() {
-        ldapContainer.start();
+        DockerLdapSingleton.ldapContainer.start();
     }
 
     @AfterAll
     static void afterAll() {
-        ldapContainer.stop();
+        DockerLdapSingleton.ldapContainer.stop();
     }
 
     @Test
     void shouldNotStartWithInvalidFilter() throws Exception {
-        HierarchicalConfiguration<ImmutableNode> configuration = ldapRepositoryConfiguration(ldapContainer);
+        HierarchicalConfiguration<ImmutableNode> configuration = ldapRepositoryConfiguration(DockerLdapSingleton.ldapContainer);
         configuration.addProperty("[@filter]", "INVALID!!!");
 
         ReadOnlyUsersLDAPRepository usersLDAPRepository = new ReadOnlyUsersLDAPRepository(new SimpleDomainList());
@@ -92,7 +87,7 @@ class ReadOnlyUsersLDAPRepositoryTest {
     class FilterTests {
         @Test
         void filterShouldKeepMatchingEntries() throws Exception {
-            HierarchicalConfiguration<ImmutableNode> configuration = ldapRepositoryConfiguration(ldapContainer);
+            HierarchicalConfiguration<ImmutableNode> configuration = ldapRepositoryConfiguration(DockerLdapSingleton.ldapContainer);
             configuration.addProperty("[@filter]", "(sn=james-user)");
 
             ReadOnlyUsersLDAPRepository usersLDAPRepository = new ReadOnlyUsersLDAPRepository(new SimpleDomainList());
@@ -104,7 +99,7 @@ class ReadOnlyUsersLDAPRepositoryTest {
 
         @Test
         void filterShouldFilterOutNonMatchingEntries() throws Exception {
-            HierarchicalConfiguration<ImmutableNode> configuration = ldapRepositoryConfiguration(ldapContainer);
+            HierarchicalConfiguration<ImmutableNode> configuration = ldapRepositoryConfiguration(DockerLdapSingleton.ldapContainer);
             configuration.addProperty("[@filter]", "(sn=nomatch)");
 
             ReadOnlyUsersLDAPRepository usersLDAPRepository = new ReadOnlyUsersLDAPRepository(new SimpleDomainList());
@@ -116,7 +111,7 @@ class ReadOnlyUsersLDAPRepositoryTest {
 
         @Test
         void countShouldTakeFilterIntoAccount() throws Exception {
-            HierarchicalConfiguration<ImmutableNode> configuration = ldapRepositoryConfiguration(ldapContainer);
+            HierarchicalConfiguration<ImmutableNode> configuration = ldapRepositoryConfiguration(DockerLdapSingleton.ldapContainer);
             configuration.addProperty("[@filter]", "(sn=nomatch)");
 
             ReadOnlyUsersLDAPRepository usersLDAPRepository = new ReadOnlyUsersLDAPRepository(new SimpleDomainList());
@@ -128,7 +123,7 @@ class ReadOnlyUsersLDAPRepositoryTest {
 
         @Test
         void listShouldTakeFilterIntoAccount() throws Exception {
-            HierarchicalConfiguration<ImmutableNode> configuration = ldapRepositoryConfiguration(ldapContainer);
+            HierarchicalConfiguration<ImmutableNode> configuration = ldapRepositoryConfiguration(DockerLdapSingleton.ldapContainer);
             configuration.addProperty("[@filter]", "(sn=nomatch)");
 
             ReadOnlyUsersLDAPRepository usersLDAPRepository = new ReadOnlyUsersLDAPRepository(new SimpleDomainList());
@@ -149,7 +144,7 @@ class ReadOnlyUsersLDAPRepositoryTest {
 
         @BeforeEach
         void setUp(TestSystem testSystem) throws Exception {
-            usersRepository = startUsersRepository(ldapRepositoryConfigurationWithVirtualHosting(ldapContainer), testSystem.getDomainList());
+            usersRepository = startUsersRepository(ldapRepositoryConfigurationWithVirtualHosting(DockerLdapSingleton.ldapContainer), testSystem.getDomainList());
             this.testSystem = testSystem;
         }
 
@@ -160,7 +155,7 @@ class ReadOnlyUsersLDAPRepositoryTest {
 
         @Override
         public UsersRepository testee(Optional<Username> administrator) throws Exception {
-            return startUsersRepository(ldapRepositoryConfigurationWithVirtualHosting(ldapContainer, administrator), testSystem.getDomainList());
+            return startUsersRepository(ldapRepositoryConfigurationWithVirtualHosting(DockerLdapSingleton.ldapContainer, administrator), testSystem.getDomainList());
         }
 
         @Test
@@ -255,7 +250,7 @@ class ReadOnlyUsersLDAPRepositoryTest {
 
         @BeforeEach
         void setUp(TestSystem testSystem) throws Exception {
-            usersRepository = startUsersRepository(ldapRepositoryConfiguration(ldapContainer), testSystem.getDomainList());
+            usersRepository = startUsersRepository(ldapRepositoryConfiguration(DockerLdapSingleton.ldapContainer), testSystem.getDomainList());
             this.testSystem = testSystem;
         }
 
@@ -266,7 +261,7 @@ class ReadOnlyUsersLDAPRepositoryTest {
 
         @Override
         public UsersRepository testee(Optional<Username> administrator) throws Exception {
-            return startUsersRepository(ldapRepositoryConfiguration(ldapContainer, administrator), testSystem.getDomainList());
+            return startUsersRepository(ldapRepositoryConfiguration(DockerLdapSingleton.ldapContainer, administrator), testSystem.getDomainList());
         }
 
         @Test
@@ -340,14 +335,14 @@ class ReadOnlyUsersLDAPRepositoryTest {
         @Test
         void supportVirtualHostingShouldReturnFalseByDefault() throws Exception {
             ReadOnlyUsersLDAPRepository usersLDAPRepository = new ReadOnlyUsersLDAPRepository(new SimpleDomainList());
-            usersLDAPRepository.configure(ldapRepositoryConfiguration(ldapContainer));
+            usersLDAPRepository.configure(ldapRepositoryConfiguration(DockerLdapSingleton.ldapContainer));
 
             assertThat(usersLDAPRepository.supportVirtualHosting()).isFalse();
         }
 
         @Test
         void supportVirtualHostingShouldReturnTrueWhenReportedInConfig() throws Exception {
-            HierarchicalConfiguration<ImmutableNode> configuration = ldapRepositoryConfiguration(ldapContainer);
+            HierarchicalConfiguration<ImmutableNode> configuration = ldapRepositoryConfiguration(DockerLdapSingleton.ldapContainer);
             configuration.addProperty(SUPPORTS_VIRTUAL_HOSTING, "true");
 
             ReadOnlyUsersLDAPRepository usersLDAPRepository = new ReadOnlyUsersLDAPRepository(new SimpleDomainList());
@@ -358,7 +353,7 @@ class ReadOnlyUsersLDAPRepositoryTest {
 
         @Test
         void supportVirtualHostingShouldReturnFalseWhenReportedInConfig() throws Exception {
-            HierarchicalConfiguration<ImmutableNode> configuration = ldapRepositoryConfiguration(ldapContainer);
+            HierarchicalConfiguration<ImmutableNode> configuration = ldapRepositoryConfiguration(DockerLdapSingleton.ldapContainer);
             configuration.addProperty(SUPPORTS_VIRTUAL_HOSTING, "false");
 
             ReadOnlyUsersLDAPRepository usersLDAPRepository = new ReadOnlyUsersLDAPRepository(new SimpleDomainList());
@@ -369,7 +364,7 @@ class ReadOnlyUsersLDAPRepositoryTest {
 
         @Test
         void configureShouldThrowOnNonBooleanValueForSupportsVirtualHosting() {
-            HierarchicalConfiguration<ImmutableNode> configuration = ldapRepositoryConfiguration(ldapContainer);
+            HierarchicalConfiguration<ImmutableNode> configuration = ldapRepositoryConfiguration(DockerLdapSingleton.ldapContainer);
             configuration.addProperty(SUPPORTS_VIRTUAL_HOSTING, "bad");
 
             ReadOnlyUsersLDAPRepository usersLDAPRepository = new ReadOnlyUsersLDAPRepository(new SimpleDomainList());

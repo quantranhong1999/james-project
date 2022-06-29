@@ -19,8 +19,6 @@
 
 package org.apache.james.user.ldap;
 
-import static org.apache.james.user.ldap.DockerLdapSingleton.ADMIN_PASSWORD;
-import static org.apache.james.user.ldap.DockerLdapSingleton.DOMAIN;
 import static org.apache.james.user.ldap.ReadOnlyUsersLDAPRepositoryTest.ldapRepositoryConfiguration;
 import static org.apache.james.user.ldap.ReadOnlyUsersLDAPRepositoryTest.ldapRepositoryConfigurationWithVirtualHosting;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,22 +37,17 @@ import org.junit.jupiter.api.Test;
 import com.google.common.collect.ImmutableList;
 
 class ReadOnlyUsersLDAPRepositoryEmptyListTest {
-    static LdapGenericContainer ldapContainer = LdapGenericContainer.builder()
-        .domain(DOMAIN)
-        .password(ADMIN_PASSWORD)
-        .build();
-
     DomainList domainList;
     private ReadOnlyUsersLDAPRepository ldapRepository;
 
     @BeforeAll
     static void setUpAll() {
-        ldapContainer.start();
+        DockerLdapSingleton.ldapContainer.start();
     }
 
     @AfterAll
     static void afterAll() {
-        ldapContainer.stop();
+        DockerLdapSingleton.ldapContainer.stop();
     }
 
     @Nested
@@ -63,7 +56,7 @@ class ReadOnlyUsersLDAPRepositoryEmptyListTest {
         @BeforeEach
         void setUp() throws Exception {
             domainList = mock(DomainList.class);
-            HierarchicalConfiguration<ImmutableNode> config = ldapRepositoryConfiguration(ldapContainer);
+            HierarchicalConfiguration<ImmutableNode> config = ldapRepositoryConfiguration(DockerLdapSingleton.ldapContainer);
             config.setProperty("[@userBase]", "ou=empty,dc=james,dc=org");
             ldapRepository = startUsersRepository(config);
         }
@@ -90,7 +83,7 @@ class ReadOnlyUsersLDAPRepositoryEmptyListTest {
         @BeforeEach
         void setUp() throws Exception {
             domainList = mock(DomainList.class);
-            HierarchicalConfiguration<ImmutableNode> config = ldapRepositoryConfigurationWithVirtualHosting(ldapContainer);
+            HierarchicalConfiguration<ImmutableNode> config = ldapRepositoryConfigurationWithVirtualHosting(DockerLdapSingleton.ldapContainer);
             config.setProperty("[@userBase]", "ou=empty,dc=james,dc=org");
             ldapRepository = startUsersRepository(config);
         }
