@@ -59,12 +59,13 @@ public class ReactiveThrottler {
 
     public Publisher<Void> throttle(Publisher<Void> task) {
         int requestNumber = concurrentRequests.incrementAndGet();
+        System.out.println("Current request number: " + requestNumber);
 
-        if (requestNumber < maxConcurrentRequests) {
+        if (requestNumber <= maxConcurrentRequests) {
             // We have capacity for one more concurrent request
             return Mono.from(task)
                 .then(onRequestDone());
-        } else if (requestNumber < maxQueueSize + maxConcurrentRequests) {
+        } else if (requestNumber <= maxQueueSize + maxConcurrentRequests) {
             // Queue the request for later
             Sinks.One<Void> one = Sinks.one();
             queue.add(new Throttled(Mono.from(task)
