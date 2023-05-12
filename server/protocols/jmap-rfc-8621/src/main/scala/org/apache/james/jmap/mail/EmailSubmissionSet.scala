@@ -122,7 +122,9 @@ case class EmailSubmissionId(value: Id)
 
 case class EmailSubmissionCreationResponse(id: EmailSubmissionId)
 
-case class EmailSubmissionAddress(email: MailAddress)
+case class Parameters(parameters: Map[String, String])
+
+case class EmailSubmissionAddress(email: MailAddress, parameters: Parameters)
 
 case class Envelope(mailFrom: EmailSubmissionAddress, rcptTo: List[EmailSubmissionAddress])
 

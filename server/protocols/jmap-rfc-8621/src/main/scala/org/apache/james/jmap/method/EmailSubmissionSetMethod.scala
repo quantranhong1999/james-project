@@ -21,7 +21,6 @@ package org.apache.james.jmap.method
 
 import java.io.InputStream
 
-import cats.implicits._
 import eu.timepit.refined.auto._
 import eu.timepit.refined.refineV
 import javax.annotation.PreDestroy
@@ -36,7 +35,7 @@ import org.apache.james.jmap.core.Invocation.{Arguments, MethodName}
 import org.apache.james.jmap.core.SetError.{SetErrorDescription, SetErrorType}
 import org.apache.james.jmap.core.{ClientId, Invocation, Properties, ServerId, SessionTranslator, SetError, UuidState}
 import org.apache.james.jmap.json.{EmailSubmissionSetSerializer, ResponseSerializer}
-import org.apache.james.jmap.mail.{EmailSubmissionAddress, EmailSubmissionCreationId, EmailSubmissionCreationRequest, EmailSubmissionCreationResponse, EmailSubmissionId, EmailSubmissionSetRequest, EmailSubmissionSetResponse, Envelope}
+import org.apache.james.jmap.mail.{EmailSubmissionAddress, EmailSubmissionCreationId, EmailSubmissionCreationRequest, EmailSubmissionCreationResponse, EmailSubmissionId, EmailSubmissionSetRequest, EmailSubmissionSetResponse, Envelope, Parameters}
 import org.apache.james.jmap.method.EmailSubmissionSetMethod.{CreationFailure, CreationResult, CreationResults, CreationSuccess, LOGGER, MAIL_METADATA_USERNAME_ATTRIBUTE}
 import org.apache.james.jmap.routes.{ProcessingContext, SessionSupplier}
 import org.apache.james.lifecycle.api.{LifecycleUtil, Startable}
@@ -47,7 +46,6 @@ import org.apache.james.queue.api.MailQueueFactory.SPOOL
 import org.apache.james.queue.api.{MailQueue, MailQueueFactory}
 import org.apache.james.rrt.api.CanSendFrom
 import org.apache.james.server.core.{MailImpl, MimeMessageSource, MimeMessageWrapper}
-import org.apache.james.util.ReactorUtils
 import org.apache.mailet.{Attribute, AttributeName, AttributeValue}
 import org.slf4j.{Logger, LoggerFactory}
 import play.api.libs.json._
@@ -176,7 +174,7 @@ class EmailSubmissionSetMethod @Inject()(serializer: EmailSubmissionSetSerialize
               .as[JsObject]),
             methodCallId = invocation.invocation.methodCallId),
           processingContext = createdResults._2)
-
+        println(explicitInvocation)
         val emailSetCall: SMono[InvocationWithContext] = request.implicitEmailSetRequest(createdResults._1.resolveMessageId)
           .fold(e => SMono.error(e),
             maybeEmailSetRequest => maybeEmailSetRequest.map(emailSetRequest =>
@@ -319,18 +317,19 @@ class EmailSubmissionSetMethod @Inject()(serializer: EmailSubmissionSetSerialize
     val cc: List[Address] = Option(mimeMessage.getRecipients(RecipientType.CC)).toList.flatten
     val bcc: List[Address] = Option(mimeMessage.getRecipients(RecipientType.BCC)).toList.flatten
     for {
-      mailFrom <- Option(mimeMessage.getFrom).toList.flatten
+      mailFrom <- Try(Option(mimeMessage.getFrom).toList.flatten
         .headOption
         .map(_.asInstanceOf[InternetAddress].getAddress)
         .map(s => Try(new MailAddress(s)))
         .getOrElse(Failure(new IllegalArgumentException("Implicit envelope detection requires a from field")))
-        .map(EmailSubmissionAddress)
-      rcptTo <- (to ++ cc ++ bcc)
+        .get)
+      mailFrom <- Try(EmailSubmissionAddress(mailFrom, Parameters(Map[String, String]())))
+      rcptTo <- Try((to ++ cc ++ bcc)
         .map(_.asInstanceOf[InternetAddress].getAddress)
         .map(s => Try(new MailAddress(s)))
-        .sequence
+        .map(s => EmailSubmissionAddress(s.get, Parameters(Map[String, String]()))))
     } yield {
-      Envelope(mailFrom, rcptTo.map(EmailSubmissionAddress))
+      Envelope(mailFrom, rcptTo)
     }
   }
 

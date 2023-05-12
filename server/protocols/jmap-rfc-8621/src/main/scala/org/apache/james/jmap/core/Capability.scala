@@ -167,6 +167,9 @@ case object SubmissionCapabilityFactory extends CapabilityFactory {
   override def id(): CapabilityIdentifier = EMAIL_SUBMISSION
 
   override def create(urlPrefixes: UrlPrefixes): Capability = SubmissionCapability()
+
+   def create(maxDelayedSend: MaxDelayedSend, submissionExtensions: Map[EhloName, EhloArgs]): Capability =
+    SubmissionCapability(EMAIL_SUBMISSION, SubmissionProperties(maxDelayedSend, submissionExtensions))
 }
 
 final case class SubmissionProperties(maxDelayedSend: MaxDelayedSend = MaxDelayedSend(0),
