@@ -21,6 +21,7 @@ package org.apache.james.jmap.draft;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
@@ -47,7 +48,7 @@ import org.apache.james.jmap.core.MDNCapabilityFactory$;
 import org.apache.james.jmap.core.MailCapabilityFactory;
 import org.apache.james.jmap.core.QuotaCapabilityFactory$;
 import org.apache.james.jmap.core.SharesCapabilityFactory$;
-import org.apache.james.jmap.core.SubmissionCapabilityFactory$;
+import org.apache.james.jmap.core.SubmissionCapabilityFactory;
 import org.apache.james.jmap.core.VacationResponseCapabilityFactory$;
 import org.apache.james.jmap.core.WebSocketCapabilityFactory$;
 import org.apache.james.jmap.draft.methods.RequestHandler;
@@ -151,7 +152,6 @@ public class JMAPModule extends AbstractModule {
         supportedCapabilities.addBinding().toInstance(DelegationCapabilityFactory$.MODULE$);
         supportedCapabilities.addBinding().toInstance(SharesCapabilityFactory$.MODULE$);
         supportedCapabilities.addBinding().toInstance(VacationResponseCapabilityFactory$.MODULE$);
-        supportedCapabilities.addBinding().toInstance(SubmissionCapabilityFactory$.MODULE$);
         supportedCapabilities.addBinding().toInstance(MDNCapabilityFactory$.MODULE$);
     }
 
@@ -179,6 +179,17 @@ public class JMAPModule extends AbstractModule {
     @ProvidesIntoSet
     CapabilityFactory coreCapability(JmapRfc8621Configuration configuration) {
         return new CoreCapabilityFactory(configuration.maxUploadSize());
+    }
+
+    @ProvidesIntoSet
+    CapabilityFactory submissionCapability(@Named("supportsDelaySends") boolean supportsDelaySends, Clock clock) {
+        return new SubmissionCapabilityFactory(clock, supportsDelaySends);
+    }
+
+    @Provides
+    @Named("supportsDelaySends")
+    boolean submissionCapability(JmapRfc8621Configuration configuration) {
+        return configuration.supportsDelaySends();
     }
 
     @ProvidesIntoSet

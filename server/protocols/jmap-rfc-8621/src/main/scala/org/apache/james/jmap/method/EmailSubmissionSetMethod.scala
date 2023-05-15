@@ -35,7 +35,7 @@ import org.apache.james.jmap.core.Invocation.{Arguments, MethodName}
 import org.apache.james.jmap.core.SetError.{SetErrorDescription, SetErrorType}
 import org.apache.james.jmap.core.{ClientId, Invocation, Properties, ServerId, SessionTranslator, SetError, UuidState}
 import org.apache.james.jmap.json.{EmailSubmissionSetSerializer, ResponseSerializer}
-import org.apache.james.jmap.mail.{EmailSubmissionAddress, EmailSubmissionCreationId, EmailSubmissionCreationRequest, EmailSubmissionCreationResponse, EmailSubmissionId, EmailSubmissionSetRequest, EmailSubmissionSetResponse, Envelope, Parameters}
+import org.apache.james.jmap.mail.{EmailSubmissionAddress, EmailSubmissionCreationId, EmailSubmissionCreationRequest, EmailSubmissionCreationResponse, EmailSubmissionId, EmailSubmissionSetRequest, EmailSubmissionSetResponse, Envelope}
 import org.apache.james.jmap.method.EmailSubmissionSetMethod.{CreationFailure, CreationResult, CreationResults, CreationSuccess, LOGGER, MAIL_METADATA_USERNAME_ATTRIBUTE}
 import org.apache.james.jmap.routes.{ProcessingContext, SessionSupplier}
 import org.apache.james.lifecycle.api.{LifecycleUtil, Startable}
@@ -322,12 +322,11 @@ class EmailSubmissionSetMethod @Inject()(serializer: EmailSubmissionSetSerialize
         .map(_.asInstanceOf[InternetAddress].getAddress)
         .map(s => Try(new MailAddress(s)))
         .getOrElse(Failure(new IllegalArgumentException("Implicit envelope detection requires a from field")))
-        .get)
-      mailFrom <- Try(EmailSubmissionAddress(mailFrom, Parameters(Map[String, String]())))
+        .get).map(EmailSubmissionAddress(_))
       rcptTo <- Try((to ++ cc ++ bcc)
         .map(_.asInstanceOf[InternetAddress].getAddress)
         .map(s => Try(new MailAddress(s)))
-        .map(s => EmailSubmissionAddress(s.get, Parameters(Map[String, String]()))))
+        .map(s => EmailSubmissionAddress(s.get)))
     } yield {
       Envelope(mailFrom, rcptTo)
     }

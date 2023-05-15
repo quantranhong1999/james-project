@@ -21,6 +21,9 @@ package org.apache.james.jmap.rfc8621.memory;
 
 import static org.apache.james.data.UsersRepositoryModuleChooser.Implementation.DEFAULT;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.apache.james.JamesServerBuilder;
@@ -33,7 +36,12 @@ import org.apache.james.mailbox.model.MessageId;
 import org.apache.james.modules.TestJMAPServerModule;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
+import com.google.inject.name.Names;
+
 class MemoryEmailSubmissionSetMethodFutureReleaseTest implements EmailSubmissionSetMethodFutureReleaseContract {
+    private static final Instant DATE = Instant.parse("2023-04-14T10:00:00.00Z");
+    private static final Clock CLOCK = Clock.fixed(DATE, ZoneId.of("Z"));
+
     @RegisterExtension
     static JamesServerExtension testExtension = new JamesServerBuilder<MemoryJamesConfiguration>(tmpDir ->
         MemoryJamesConfiguration.builder()
@@ -43,6 +51,8 @@ class MemoryEmailSubmissionSetMethodFutureReleaseTest implements EmailSubmission
             .build())
         .server(configuration -> MemoryJamesServerMain.createServer(configuration)
             .overrideWith(new TestJMAPServerModule()))
+        .overrideServerModule(binder -> binder.bind(Clock.class).toInstance(CLOCK))
+        .overrideServerModule(binder -> binder.bind(Boolean.class).annotatedWith(Names.named("supportsDelaySends")).toInstance(true))
         .build();
 
     @Override

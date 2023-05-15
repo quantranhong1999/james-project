@@ -29,6 +29,7 @@ import org.apache.james.jmap.core.Id.{Id, IdConstraint}
 import org.apache.james.jmap.core.Properties.toProperties
 import org.apache.james.jmap.core.SetError.SetErrorDescription
 import org.apache.james.jmap.core.{AccountId, Id, SetError, UuidState}
+import org.apache.james.jmap.mail.Parameters.EMPTY
 import org.apache.james.jmap.method.{EmailSubmissionCreationParseException, WithAccountId}
 import org.apache.james.mailbox.model.MessageId
 import play.api.libs.json.JsObject
@@ -122,9 +123,12 @@ case class EmailSubmissionId(value: Id)
 
 case class EmailSubmissionCreationResponse(id: EmailSubmissionId)
 
+case object Parameters {
+  val EMPTY = Parameters(Map())
+}
 case class Parameters(parameters: Map[String, String])
 
-case class EmailSubmissionAddress(email: MailAddress, parameters: Parameters)
+case class EmailSubmissionAddress(email: MailAddress, parameters: Parameters = EMPTY)
 
 case class Envelope(mailFrom: EmailSubmissionAddress, rcptTo: List[EmailSubmissionAddress])
 

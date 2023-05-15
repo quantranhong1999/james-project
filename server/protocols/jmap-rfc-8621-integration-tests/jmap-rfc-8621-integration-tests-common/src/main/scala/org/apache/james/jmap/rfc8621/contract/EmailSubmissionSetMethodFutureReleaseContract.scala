@@ -30,7 +30,9 @@ import net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson
 import org.apache.http.HttpStatus.SC_OK
 import org.apache.james.GuiceJamesServer
 import org.apache.james.jmap.http.UserCredential
+import org.apache.james.jmap.rfc8621.contract.EmailSubmissionSetMethodFutureReleaseContract.future_release_session_object
 import org.apache.james.jmap.rfc8621.contract.Fixture.{ACCEPT_RFC8621_VERSION_HEADER, ACCOUNT_ID, ANDRE, ANDRE_ACCOUNT_ID, ANDRE_PASSWORD, BOB, BOB_PASSWORD, DOMAIN, authScheme, baseRequestSpecBuilder}
+import org.apache.james.jmap.rfc8621.contract.tags.CategoryTags
 import org.apache.james.mailbox.DefaultMailboxes
 import org.apache.james.mailbox.MessageManager.AppendCommand
 import org.apache.james.mailbox.model.{MailboxId, MailboxPath, MessageId}
@@ -39,7 +41,109 @@ import org.apache.james.modules.MailboxProbeImpl
 import org.apache.james.utils.DataProbeImpl
 import org.awaitility.Awaitility
 import org.awaitility.Durations.ONE_HUNDRED_MILLISECONDS
-import org.junit.jupiter.api.{BeforeEach, Test}
+import org.junit.jupiter.api.{BeforeEach, Tag, Test}
+
+case object EmailSubmissionSetMethodFutureReleaseContract {
+  private val future_release_session_object: String =
+    """{
+      |  "capabilities" : {
+      |    "urn:ietf:params:jmap:submission": {
+      |      "maxDelayedSend": 86400,
+      |      "submissionExtensions": {"FUTURERELEASE": ["86400", "2023-04-15T10:00:00Z"]}
+      |    },
+      |    "urn:ietf:params:jmap:core" : {
+      |      "maxSizeUpload" : 20971520,
+      |      "maxConcurrentUpload" : 4,
+      |      "maxSizeRequest" : 10000000,
+      |      "maxConcurrentRequests" : 4,
+      |      "maxCallsInRequest" : 16,
+      |      "maxObjectsInGet" : 500,
+      |      "maxObjectsInSet" : 500,
+      |      "collationAlgorithms" : [ "i;unicode-casemap" ]
+      |    },
+      |    "urn:ietf:params:jmap:mail" : {
+      |      "maxMailboxesPerEmail" : 10000000,
+      |      "maxMailboxDepth" : null,
+      |      "maxSizeMailboxName" : 200,
+      |      "maxSizeAttachmentsPerEmail" : 20000000,
+      |      "emailQuerySortOptions" : ["receivedAt", "sentAt", "size", "from", "to", "subject"],
+      |      "mayCreateTopLevelMailbox" : true
+      |    },
+      |    "urn:ietf:params:jmap:websocket": {
+      |      "supportsPush": true,
+      |      "url": "ws://domain.com/jmap/ws"
+      |    },
+      |    "urn:apache:james:params:jmap:mail:quota": {},
+      |    "urn:ietf:params:jmap:quota": {},
+      |    "urn:apache:james:params:jmap:mail:identity:sortorder": {},
+      |    "urn:apache:james:params:jmap:delegation": {},
+      |    "urn:apache:james:params:jmap:mail:shares": {},
+      |    "urn:ietf:params:jmap:vacationresponse":{},
+      |    "urn:ietf:params:jmap:mdn":{}
+      |  },
+      |  "accounts" : {
+      |    "29883977c13473ae7cb7678ef767cbfbaffc8a44a6e463d971d23a65c1dc4af6" : {
+      |      "name" : "bob@domain.tld",
+      |      "isPersonal" : true,
+      |      "isReadOnly" : false,
+      |      "accountCapabilities" : {
+      |        "urn:ietf:params:jmap:submission": {
+      |          "maxDelayedSend": 86400,
+      |          "submissionExtensions": {"FUTURERELEASE": ["86400", "2023-04-15T10:00:00Z"]}
+      |        },
+      |        "urn:ietf:params:jmap:websocket": {
+      |            "supportsPush": true,
+      |            "url": "ws://domain.com/jmap/ws"
+      |        },
+      |        "urn:ietf:params:jmap:core" : {
+      |          "maxSizeUpload" : 20971520,
+      |          "maxConcurrentUpload" : 4,
+      |          "maxSizeRequest" : 10000000,
+      |          "maxConcurrentRequests" : 4,
+      |          "maxCallsInRequest" : 16,
+      |          "maxObjectsInGet" : 500,
+      |          "maxObjectsInSet" : 500,
+      |          "collationAlgorithms" : [ "i;unicode-casemap" ]
+      |        },
+      |        "urn:ietf:params:jmap:mail" : {
+      |          "maxMailboxesPerEmail" : 10000000,
+      |          "maxMailboxDepth" : null,
+      |          "maxSizeMailboxName" : 200,
+      |          "maxSizeAttachmentsPerEmail" : 20000000,
+      |          "emailQuerySortOptions" : ["receivedAt", "sentAt", "size", "from", "to", "subject"],
+      |          "mayCreateTopLevelMailbox" : true
+      |        },
+      |        "urn:apache:james:params:jmap:mail:quota": {},
+      |        "urn:ietf:params:jmap:quota": {},
+      |        "urn:apache:james:params:jmap:mail:identity:sortorder": {},
+      |        "urn:apache:james:params:jmap:delegation": {},
+      |        "urn:apache:james:params:jmap:mail:shares": {},
+      |        "urn:ietf:params:jmap:vacationresponse":{},
+      |        "urn:ietf:params:jmap:mdn":{}
+      |      }
+      |    }
+      |  },
+      |  "primaryAccounts" : {
+      |    "urn:ietf:params:jmap:submission": "29883977c13473ae7cb7678ef767cbfbaffc8a44a6e463d971d23a65c1dc4af6",
+      |    "urn:ietf:params:jmap:websocket": "29883977c13473ae7cb7678ef767cbfbaffc8a44a6e463d971d23a65c1dc4af6",
+      |    "urn:ietf:params:jmap:core" : "29883977c13473ae7cb7678ef767cbfbaffc8a44a6e463d971d23a65c1dc4af6",
+      |    "urn:ietf:params:jmap:mail" : "29883977c13473ae7cb7678ef767cbfbaffc8a44a6e463d971d23a65c1dc4af6",
+      |    "urn:apache:james:params:jmap:mail:quota": "29883977c13473ae7cb7678ef767cbfbaffc8a44a6e463d971d23a65c1dc4af6",
+      |    "urn:ietf:params:jmap:quota": "29883977c13473ae7cb7678ef767cbfbaffc8a44a6e463d971d23a65c1dc4af6",
+      |    "urn:apache:james:params:jmap:mail:identity:sortorder": "29883977c13473ae7cb7678ef767cbfbaffc8a44a6e463d971d23a65c1dc4af6",
+      |    "urn:apache:james:params:jmap:delegation": "29883977c13473ae7cb7678ef767cbfbaffc8a44a6e463d971d23a65c1dc4af6",
+      |    "urn:apache:james:params:jmap:mail:shares": "29883977c13473ae7cb7678ef767cbfbaffc8a44a6e463d971d23a65c1dc4af6",
+      |    "urn:ietf:params:jmap:vacationresponse": "29883977c13473ae7cb7678ef767cbfbaffc8a44a6e463d971d23a65c1dc4af6",
+      |    "urn:ietf:params:jmap:mdn": "29883977c13473ae7cb7678ef767cbfbaffc8a44a6e463d971d23a65c1dc4af6"
+      |  },
+      |  "username" : "bob@domain.tld",
+      |  "apiUrl" : "http://domain.com/jmap",
+      |  "downloadUrl" : "http://domain.com/download/{accountId}/{blobId}?type={type}&name={name}",
+      |  "uploadUrl" : "http://domain.com/upload/{accountId}",
+      |  "eventSourceUrl" : "http://domain.com/eventSource?types={types}&closeAfter={closeafter}&ping={ping}",
+      |  "state" : "2c9f1b12-b35a-43e6-9af2-0106fb53a943"
+      |}""".stripMargin
+}
 
 trait EmailSubmissionSetMethodFutureReleaseContract {
   private lazy val slowPacedPollInterval = ONE_HUNDRED_MILLISECONDS
@@ -63,6 +167,22 @@ trait EmailSubmissionSetMethodFutureReleaseContract {
   }
 
   def randomMessageId: MessageId
+
+  @Test
+  @Tag(CategoryTags.BASIC_FEATURE)
+  def serverShouldBeAdvertisedFutureReleaseExtension(): Unit = {
+    val sessionJson: String = `given`()
+    .when()
+      .header(ACCEPT.toString, ACCEPT_RFC8621_VERSION_HEADER)
+      .get("/session")
+    .`then`
+      .statusCode(SC_OK)
+      .contentType(JSON)
+      .extract()
+      .body()
+      .asString()
+    assertThatJson(sessionJson).isEqualTo(future_release_session_object)
+  }
 
   @Test
   def emailSubmissionSetCreateShouldSendMailSuccessfully(server: GuiceJamesServer): Unit = {
@@ -96,7 +216,9 @@ trait EmailSubmissionSetMethodFutureReleaseContract {
          |           "envelope": {
          |             "mailFrom": {
          |                "email": "${BOB.asString}",
-         |                "parameters": {}
+         |                "parameters": {
+         |                  "holdFor": 7600
+         |                }
          |                },
          |             "rcptTo": [{"email": "${ANDRE.asString}"}]
          |           }
@@ -139,7 +261,6 @@ trait EmailSubmissionSetMethodFutureReleaseContract {
         .extract
         .body
         .asString
-
       assertThatJson(response)
         .inPath("methodResponses[0][1].ids")
         .isArray
