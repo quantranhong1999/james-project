@@ -6,12 +6,19 @@ services:
     depends_on:
       - opensearch
       - cassandra
-      - tika
+#      - tika
       - rabbitmq
       - s3
     image: apache/james:distributed-latest
     container_name: james
     hostname: james.local
+    command:
+      - --generate-keystore
+    volumes:
+      - ./docker-configuration/keystore:/root/conf/keystore
+      - ./docker-configuration/smtpserver.xml:/root/conf/smtpserver.xml
+      - ./docker-configuration/imapserver.xml:/root/conf/imapserver.xml
+      - ./docker-configuration/opensearch.properties:/root/conf/opensearch.properties
     ports:
       - "80:80"
       - "25:25"
@@ -24,18 +31,22 @@ services:
 
   opensearch:
     image: opensearchproject/opensearch:2.1.0
+    container_name: opensearch
     environment:
       - discovery.type=single-node
-      - DISABLE_INSTALL_DEMO_CONFIG=true
-      - DISABLE_SECURITY_PLUGIN=true
+      - plugins.security.ssl.http.enabled=false # allow http
+#      - DISABLE_INSTALL_DEMO_CONFIG=true
+#      - DISABLE_SECURITY_PLUGIN=true
+    ports:
+      - "9200:9200"
 
   cassandra:
     image: cassandra:3.11.10
     ports:
       - "9042:9042"
-
-  tika:
-    image: apache/tika:1.28.2
+#
+#  tika:
+#    image: apache/tika:1.28.2
 
   rabbitmq:
     image: rabbitmq:3.9.18-management
