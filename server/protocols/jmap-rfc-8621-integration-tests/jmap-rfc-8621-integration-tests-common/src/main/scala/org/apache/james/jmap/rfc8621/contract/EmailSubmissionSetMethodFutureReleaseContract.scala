@@ -20,6 +20,7 @@
 package org.apache.james.jmap.rfc8621.contract
 
 import java.nio.charset.StandardCharsets
+import java.time.{Clock, Duration, Instant, LocalDateTime, ZoneId}
 import java.util.concurrent.TimeUnit
 
 import io.netty.handler.codec.http.HttpHeaderNames.ACCEPT
@@ -32,6 +33,7 @@ import org.apache.james.GuiceJamesServer
 import org.apache.james.jmap.http.UserCredential
 import org.apache.james.jmap.rfc8621.contract.EmailSubmissionSetMethodFutureReleaseContract.future_release_session_object
 import org.apache.james.jmap.rfc8621.contract.Fixture.{ACCEPT_RFC8621_VERSION_HEADER, ACCOUNT_ID, ANDRE, ANDRE_ACCOUNT_ID, ANDRE_PASSWORD, BOB, BOB_PASSWORD, DOMAIN, authScheme, baseRequestSpecBuilder}
+import org.apache.james.jmap.rfc8621.contract.Time.maximumDelays
 import org.apache.james.jmap.rfc8621.contract.tags.CategoryTags
 import org.apache.james.mailbox.DefaultMailboxes
 import org.apache.james.mailbox.MessageManager.AppendCommand
@@ -145,6 +147,13 @@ case object EmailSubmissionSetMethodFutureReleaseContract {
       |}""".stripMargin
 }
 
+object Time {
+  val DATE = Instant.parse("2023-04-14T10:00:00.00Z")
+  val CLOCK = Clock.fixed(DATE, ZoneId.of("Z"))
+  val now = LocalDateTime.now(CLOCK)
+  val maximumDelays = Duration.ofDays(1)
+}
+
 trait EmailSubmissionSetMethodFutureReleaseContract {
   private lazy val slowPacedPollInterval = ONE_HUNDRED_MILLISECONDS
   private lazy val calmlyAwait = Awaitility.`with`
@@ -185,7 +194,7 @@ trait EmailSubmissionSetMethodFutureReleaseContract {
   }
 
   @Test
-  def emailSubmissionSetCreateShouldSendMailSuccessfully(server: GuiceJamesServer): Unit = {
+  def emailSubmissionSetCreateShouldSendMailSuccessfullyWithHoldFor(server: GuiceJamesServer): Unit = {
     val message: Message = Message.Builder
       .of
       .setSubject("test")
@@ -206,26 +215,34 @@ trait EmailSubmissionSetMethodFutureReleaseContract {
 
     val requestBob =
       s"""{
-         |  "using": ["urn:ietf:params:jmap:core", "urn:ietf:params:jmap:mail", "urn:ietf:params:jmap:submission"],
-         |  "methodCalls": [
-         |     ["EmailSubmission/set", {
-         |       "accountId": "$ACCOUNT_ID",
-         |       "create": {
-         |         "k1490": {
-         |           "emailId": "${messageId.serialize}",
-         |           "envelope": {
-         |             "mailFrom": {
-         |                "email": "${BOB.asString}",
-         |                "parameters": {
-         |                  "holdFor": 7600
-         |                }
-         |                },
-         |             "rcptTo": [{"email": "${ANDRE.asString}"}]
-         |           }
-         |         }
-         |    }
-         |  }, "c1"]]
+         |	"using": ["urn:ietf:params:jmap:core", "urn:ietf:params:jmap:mail", "urn:ietf:params:jmap:submission"],
+         |	"methodCalls": [
+         |		["EmailSubmission/set", {
+         |			"accountId": "$ACCOUNT_ID",
+         |			"create": {
+         |				"k1490": {
+         |					"emailId": "${messageId.serialize}",
+         |					"envelope": {
+         |						"mailFrom": {
+         |							"email": "${BOB.asString}",
+         |							"parameters": {
+         |							  "holdFor": "76000"
+         |							}
+         |						},
+         |						"rcptTo": [{
+         |							"email": "${ANDRE.asString}"
+         |						}]
+         |					}
+         |				}
+         |			}
+         |		}, "c1"]
+         |	]
          |}""".stripMargin
+
+    assertThatJson(requestBob)
+      .inPath("methodCalls[0][1].create.k1490.envelope.mailFrom.parameters.holdFor")
+      .asNumber()
+      .isLessThanOrEqualTo(new java.math.BigDecimal(maximumDelays.toSeconds))
 
     `given`
       .header(ACCEPT.toString, ACCEPT_RFC8621_VERSION_HEADER)
