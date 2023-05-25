@@ -174,7 +174,6 @@ class EmailSubmissionSetMethod @Inject()(serializer: EmailSubmissionSetSerialize
               .as[JsObject]),
             methodCallId = invocation.invocation.methodCallId),
           processingContext = createdResults._2)
-//        println("ExplicitInvocation" + explicitInvocation)
         val emailSetCall: SMono[InvocationWithContext] = request.implicitEmailSetRequest(createdResults._1.resolveMessageId)
           .fold(e => SMono.error(e),
             maybeEmailSetRequest => maybeEmailSetRequest.map(emailSetRequest =>

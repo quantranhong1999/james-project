@@ -40,6 +40,7 @@ import org.apache.james.mailbox.MessageManager.AppendCommand
 import org.apache.james.mailbox.model.{MailboxId, MailboxPath, MessageId}
 import org.apache.james.mime4j.dom.Message
 import org.apache.james.modules.MailboxProbeImpl
+import org.apache.james.queue.api.{MailQueue, ManageableMailQueue}
 import org.apache.james.utils.DataProbeImpl
 import org.awaitility.Awaitility
 import org.awaitility.Durations.ONE_HUNDRED_MILLISECONDS
@@ -161,6 +162,10 @@ trait EmailSubmissionSetMethodFutureReleaseContract {
     .and.`with`.pollDelay(slowPacedPollInterval)
     .await
   private lazy val awaitAtMostTenSeconds = calmlyAwait.atMost(10, TimeUnit.SECONDS)
+
+  def mailQueueIterator: ManageableMailQueue.MailQueueIterator;
+
+  def mailQueue: MailQueue;
 
   @BeforeEach
   def setUp(server: GuiceJamesServer): Unit = {

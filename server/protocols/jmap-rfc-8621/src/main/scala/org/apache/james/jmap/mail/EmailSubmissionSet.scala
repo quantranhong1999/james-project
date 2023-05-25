@@ -28,7 +28,7 @@ import org.apache.james.core.MailAddress
 import org.apache.james.jmap.core.Id.{Id, IdConstraint}
 import org.apache.james.jmap.core.Properties.toProperties
 import org.apache.james.jmap.core.SetError.SetErrorDescription
-import org.apache.james.jmap.core.{AccountId, Id, SetError, UuidState}
+import org.apache.james.jmap.core.{AccountId, Id, SetError, UTCDate, UuidState}
 import org.apache.james.jmap.method.{EmailSubmissionCreationParseException, WithAccountId}
 import org.apache.james.mailbox.model.MessageId
 import play.api.libs.json.JsObject
@@ -128,18 +128,25 @@ case class EmailSubmissionAddress(email: MailAddress, parameters: Option[Map[Par
 case class Envelope(mailFrom: EmailSubmissionAddress, rcptTo: List[EmailSubmissionAddress])
 
 object EmailSubmissionCreationRequest {
-  private val assignableProperties = Set("emailId", "envelope", "identityId", "onSuccessUpdateEmail")
+  private val assignableProperties = Set("emailId", "envelope", "identityId", "onSuccessUpdateEmail", "sendAt")
 
-  def validateProperties(jsObject: JsObject): Either[EmailSubmissionCreationParseException, JsObject] =
+  def validateProperties(jsObject: JsObject): Either[EmailSubmissionCreationParseException, JsObject] = {
     jsObject.keys.diff(assignableProperties) match {
       case unknownProperties if unknownProperties.nonEmpty =>
         Left(EmailSubmissionCreationParseException(SetError.invalidArguments(
           SetErrorDescription("Some unknown properties were specified"),
           Some(toProperties(unknownProperties.toSet)))))
-      case _ => scala.Right(jsObject)
+      case _ => {
+        println("jsO" + jsObject)
+        scala.Right(jsObject)
+      }
     }
+
+  }
 }
 
 case class EmailSubmissionCreationRequest(emailId: MessageId,
                                           identityId: Option[Id],
-                                          envelope: Option[Envelope])
+                                          envelope: Option[Envelope],
+                                          sendAt: UTCDate)
+
