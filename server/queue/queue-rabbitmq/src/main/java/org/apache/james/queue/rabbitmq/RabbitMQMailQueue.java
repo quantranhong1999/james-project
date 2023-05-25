@@ -98,6 +98,11 @@ public class RabbitMQMailQueue implements ManageableMailQueue {
     }
 
     @Override
+    public Publisher<Void> enqueueReactive(Mail mail, Duration delay) {
+        return null;
+    }
+
+    @Override
     public Flux<MailQueueItem> deQueue() {
         return dequeuer.deQueue()
             .map(item -> decoratorFactory.decorate(item, name.toModel()));

@@ -20,6 +20,8 @@
 package org.apache.james.jmap.method
 
 import java.io.InputStream
+import java.time.format.DateTimeFormatter
+import java.time.{Clock, Duration, Instant, LocalDateTime, ZoneId}
 
 import eu.timepit.refined.auto._
 import eu.timepit.refined.refineV
@@ -33,9 +35,9 @@ import org.apache.james.jmap.core.CapabilityIdentifier.{CapabilityIdentifier, EM
 import org.apache.james.jmap.core.Id.{Id, IdConstraint}
 import org.apache.james.jmap.core.Invocation.{Arguments, MethodName}
 import org.apache.james.jmap.core.SetError.{SetErrorDescription, SetErrorType}
-import org.apache.james.jmap.core.{ClientId, Invocation, Properties, ServerId, SessionTranslator, SetError, UuidState}
+import org.apache.james.jmap.core.{ClientId, Invocation, Properties, ServerId, SessionTranslator, SetError, SubmissionCapabilityFactory, UuidState}
 import org.apache.james.jmap.json.{EmailSubmissionSetSerializer, ResponseSerializer}
-import org.apache.james.jmap.mail.{EmailSubmissionAddress, EmailSubmissionCreationId, EmailSubmissionCreationRequest, EmailSubmissionCreationResponse, EmailSubmissionId, EmailSubmissionSetRequest, EmailSubmissionSetResponse, Envelope}
+import org.apache.james.jmap.mail.{EmailSubmissionAddress, EmailSubmissionCreationId, EmailSubmissionCreationRequest, EmailSubmissionCreationResponse, EmailSubmissionId, EmailSubmissionSetRequest, EmailSubmissionSetResponse, Envelope, ParameterName, ParameterValue}
 import org.apache.james.jmap.method.EmailSubmissionSetMethod.{CreationFailure, CreationResult, CreationResults, CreationSuccess, LOGGER, MAIL_METADATA_USERNAME_ATTRIBUTE}
 import org.apache.james.jmap.routes.{ProcessingContext, SessionSupplier}
 import org.apache.james.lifecycle.api.{LifecycleUtil, Startable}
@@ -54,6 +56,7 @@ import reactor.core.scheduler.Schedulers
 import reactor.util.concurrent.Queues
 
 import scala.jdk.CollectionConverters._
+import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object EmailSubmissionSetMethod {
@@ -153,7 +156,8 @@ class EmailSubmissionSetMethod @Inject()(serializer: EmailSubmissionSetSerialize
   override val methodName: MethodName = MethodName("EmailSubmission/set")
   override val requiredCapabilities: Set[CapabilityIdentifier] = Set(JMAP_CORE, EMAIL_SUBMISSION)
   var queue: MailQueue = _
-
+  val DATE = Instant.parse("2023-04-14T10:00:00.00Z")
+  val CLOCK = Clock.fixed(DATE, ZoneId.of("Z"))
   def init: Unit = queue = mailQueueFactory.createQueue(SPOOL)
 
   @PreDestroy def dispose: Unit =
@@ -248,30 +252,54 @@ class EmailSubmissionSetMethod @Inject()(serializer: EmailSubmissionSetSerialize
   private def sendEmail(mailboxSession: MailboxSession,
                         request: EmailSubmissionCreationRequest): SMono[(EmailSubmissionCreationResponse, MessageId)] =
    for {
-      message <- SFlux(messageIdManager.getMessagesReactive(List(request.emailId).asJava, FetchGroup.FULL_CONTENT, mailboxSession))
+     message <- SFlux(messageIdManager.getMessagesReactive(List(request.emailId).asJava, FetchGroup.FULL_CONTENT, mailboxSession))
         .next
         .switchIfEmpty(SMono.error(MessageNotFoundException(request.emailId)))
-      submissionId = EmailSubmissionId.generate
-      message <- SMono.fromTry(toMimeMessage(submissionId.value, message))
-      envelope <- SMono.fromTry(resolveEnvelope(message, request.envelope))
-      _ <- validate(mailboxSession)(message, envelope)
-      mail = {
-        val mailImpl = MailImpl.builder()
-          .name(submissionId.value)
-          .addRecipients(envelope.rcptTo.map(_.email).asJava)
-          .sender(envelope.mailFrom.email)
-          .addAttribute(new Attribute(MAIL_METADATA_USERNAME_ATTRIBUTE, AttributeValue.of(mailboxSession.getUser.asString())))
-          .build()
-        mailImpl.setMessageNoCopy(message)
-        mailImpl
-      }
-      _ <- SMono(queue.enqueueReactive(mail))
-        .`then`(SMono.fromCallable(() => LifecycleUtil.dispose(mail)).subscribeOn(Schedulers.boundedElastic()))
-        .`then`(SMono.just(submissionId))
-    } yield {
-      EmailSubmissionCreationResponse(submissionId) -> request.emailId
-    }
+     submissionId = EmailSubmissionId.generate
+     message <- SMono.fromTry(toMimeMessage(submissionId.value, message))
+     envelope <- SMono.fromTry(resolveEnvelope(message, request.envelope))
+     _ <- validate(mailboxSession)(message, envelope)
 
+     parameters = request.envelope.get.mailFrom.parameters
+     delay = getDuration(parameters)
+     mail = {
+       val mailImpl = MailImpl.builder()
+         .name(submissionId.value)
+         .addRecipients(envelope.rcptTo.map(_.email).asJava)
+         .sender(envelope.mailFrom.email)
+         .addAttribute(new Attribute(MAIL_METADATA_USERNAME_ATTRIBUTE, AttributeValue.of(mailboxSession.getUser.asString())))
+         .build()
+       mailImpl.setMessageNoCopy(message)
+       mailImpl
+     }
+     _ <- SMono (queue.enqueueReactive(mail, delay))
+     .`then`(SMono.fromCallable(() => LifecycleUtil.dispose(mail)).subscribeOn(Schedulers.boundedElastic()))
+     .`then`(SMono.just(submissionId))
+
+    } yield {
+//     if (validateDuration(delay)) {
+//
+//     }
+     EmailSubmissionCreationResponse(submissionId) -> request.emailId
+    }
+  private def getDuration(mailParameters: Option[Map[ParameterName, Option[ParameterValue]]]): Duration = {
+    if (mailParameters.isEmpty) {
+      Duration.ofSeconds(0)
+    }
+    if (mailParameters.get.size == 1)
+    {
+      val parameterName = mailParameters.get.head._1.value
+      val parameterValue = mailParameters.get.head._2.get.value
+      if (parameterName.eq("holdFor")) {
+        Duration.ofSeconds(parameterValue.toLong)
+      } else if (parameterName.eq("holdUntil")) {
+        val formatter = DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.of("Z"))
+        Duration.between(LocalDateTime.now(CLOCK), LocalDateTime.parse(parameterValue, formatter))
+      } else Duration.ofSeconds(-1);
+    } else null
+  }
+
+  private def validateDuration(delay: Duration): Boolean = delay.getSeconds.>=(0).&&(delay.getSeconds.<=(SubmissionCapabilityFactory.maximumDelays.getSeconds))
   private def toMimeMessage(name: String, message: MessageResult): Try[MimeMessageWrapper] = {
     val source = MessageMimeMessageSource(name, message)
     // if MimeMessageCopyOnWriteProxy throws an error in the constructor we

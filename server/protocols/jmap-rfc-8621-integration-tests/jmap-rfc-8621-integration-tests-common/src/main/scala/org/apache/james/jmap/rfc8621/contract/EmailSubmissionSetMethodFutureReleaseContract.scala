@@ -240,13 +240,12 @@ trait EmailSubmissionSetMethodFutureReleaseContract {
       .header(ACCEPT.toString, ACCEPT_RFC8621_VERSION_HEADER)
       .body(request)
     .when
-      .post.prettyPeek()
+      .post
     .`then`
       .statusCode(SC_OK)
       .body("methodResponses[0][1].created.k1490.id", CharSequenceLength.hasLength(greaterThanZero))
   }
 
-  @Disabled("Not yet implemented")
   @Test
   def emailSubmissionSetCreateShouldDelayEmailWithHoldFor(server: GuiceJamesServer): Unit = {
     val message: Message = Message.Builder
@@ -295,10 +294,10 @@ trait EmailSubmissionSetMethodFutureReleaseContract {
     `with`()
       .header(ACCEPT.toString, ACCEPT_RFC8621_VERSION_HEADER)
       .body(request)
-      .post.prettyPeek()
+      .post
 
     // Wait one second
-    Thread.sleep(1000)
+    CLOCK.setInstant(DATE.plusSeconds(1))
 
     // Ensure Andre did not receive the email
     val requestAndre =
@@ -318,7 +317,7 @@ trait EmailSubmissionSetMethodFutureReleaseContract {
         .addHeader(ACCEPT.toString, ACCEPT_RFC8621_VERSION_HEADER)
         .setBody(requestAndre)
         .build, new ResponseSpecBuilder().build)
-      .post.prettyPeek()
+      .post
       .`then`
       .statusCode(SC_OK)
       .contentType(JSON)
@@ -329,7 +328,7 @@ trait EmailSubmissionSetMethodFutureReleaseContract {
     assertThatJson(response)
       .inPath("methodResponses[0][1].ids")
       .isArray
-      .isEmpty()
+      .hasSize(0)
   }
 
   @Test
@@ -384,7 +383,263 @@ trait EmailSubmissionSetMethodFutureReleaseContract {
 
     CLOCK.setInstant(DATE.plusSeconds(77000))
 
+    val requestAndre =
+      s"""{
+         |  "using": ["urn:ietf:params:jmap:core","urn:ietf:params:jmap:mail"],
+         |  "methodCalls": [[
+         |    "Email/query",
+         |    {
+         |      "accountId": "$ANDRE_ACCOUNT_ID",
+         |      "filter": {"inMailbox": "${andreInboxId.serialize}"}
+         |    },
+         |    "c1"]]
+         |}""".stripMargin
+    awaitAtMostTenSeconds.untilAsserted { () =>
+      val response = `given`(
+        baseRequestSpecBuilder(server)
+          .setAuth(authScheme(UserCredential(ANDRE, ANDRE_PASSWORD)))
+          .addHeader(ACCEPT.toString, ACCEPT_RFC8621_VERSION_HEADER)
+          .setBody(requestAndre)
+          .build, new ResponseSpecBuilder().build)
+        .post.prettyPeek()
+        .`then`
+        .statusCode(SC_OK)
+        .contentType(JSON)
+        .extract
+        .body
+        .asString
+
+      assertThatJson(response)
+        .inPath("methodResponses[0][1].ids")
+        .isArray
+        .hasSize(1)
+    }
+  }
+
+  @Test
+  def emailSubmissionSetCreateShouldBeRejectedEmailWhenHoldForGreaterThanSupportedValue(server: GuiceJamesServer): Unit = {
+    val message: Message = Message.Builder
+      .of
+      .setSubject("test")
+      .setSender(BOB.asString)
+      .setFrom(BOB.asString)
+      .setTo(ANDRE.asString)
+      .setBody("testmail", StandardCharsets.UTF_8)
+      .build
+
+    val bobDraftsPath = MailboxPath.forUser(BOB, DefaultMailboxes.DRAFTS)
+    server.getProbe(classOf[MailboxProbeImpl]).createMailbox(bobDraftsPath)
+    val messageId: MessageId = server.getProbe(classOf[MailboxProbeImpl]).appendMessage(BOB.asString(), bobDraftsPath, AppendCommand.builder()
+      .build(message))
+      .getMessageId
+    val andreInboxPath = MailboxPath.inbox(ANDRE)
+    val andreInboxId: MailboxId = server.getProbe(classOf[MailboxProbeImpl]).createMailbox(andreInboxPath)
+
+    val request =
+      s"""{
+         |	"using": ["urn:ietf:params:jmap:core", "urn:ietf:params:jmap:mail", "urn:ietf:params:jmap:submission"],
+         |	"methodCalls": [
+         |		["EmailSubmission/set", {
+         |			"accountId": "$ACCOUNT_ID",
+         |			"create": {
+         |				"k1490": {
+         |					"emailId": "${messageId.serialize}",
+         |					"envelope": {
+         |						"mailFrom": {
+         |							"email": "${BOB.asString}",
+         |							"parameters": {
+         |							  "holdFor": "7776000"
+         |							}
+         |						},
+         |						"rcptTo": [{
+         |							"email": "${ANDRE.asString}"
+         |						}]
+         |					}
+         |				}
+         |			}
+         |		}, "c1"]
+         |	]
+         |}""".stripMargin
+
+    `with`()
+      .header(ACCEPT.toString, ACCEPT_RFC8621_VERSION_HEADER)
+      .body(request)
+      .post.prettyPeek()
+
+    CLOCK.setInstant(DATE.plusSeconds(77000))
+
     // Ensure Andre did not receive the email
+    val requestAndre =
+      s"""{
+         |  "using": ["urn:ietf:params:jmap:core","urn:ietf:params:jmap:mail"],
+         |  "methodCalls": [[
+         |    "Email/query",
+         |    {
+         |      "accountId": "$ANDRE_ACCOUNT_ID",
+         |      "filter": {"inMailbox": "${andreInboxId.serialize}"}
+         |    },
+         |    "c1"]]
+         |}""".stripMargin
+
+    awaitAtMostTenSeconds.untilAsserted { () =>
+      val response = `given`(
+        baseRequestSpecBuilder(server)
+          .setAuth(authScheme(UserCredential(ANDRE, ANDRE_PASSWORD)))
+          .addHeader(ACCEPT.toString, ACCEPT_RFC8621_VERSION_HEADER)
+          .setBody(requestAndre)
+          .build, new ResponseSpecBuilder().build)
+        .post
+        .`then`
+        .statusCode(SC_OK)
+        .contentType(JSON)
+        .extract
+        .body
+        .asString
+
+      assertThatJson(response)
+        .inPath("methodResponses[0][1].ids")
+        .isArray
+        .hasSize(0)
+    }
+  }
+
+  @Test
+  def emailSubmissionSetCreateShouldBeRejectedEmailWhenHoldForIsNegative (server: GuiceJamesServer): Unit = {
+    val message: Message = Message.Builder
+      .of
+      .setSubject("test")
+      .setSender(BOB.asString)
+      .setFrom(BOB.asString)
+      .setTo(ANDRE.asString)
+      .setBody("testmail", StandardCharsets.UTF_8)
+      .build
+
+    val bobDraftsPath = MailboxPath.forUser(BOB, DefaultMailboxes.DRAFTS)
+    server.getProbe(classOf[MailboxProbeImpl]).createMailbox(bobDraftsPath)
+    val messageId: MessageId = server.getProbe(classOf[MailboxProbeImpl]).appendMessage(BOB.asString(), bobDraftsPath, AppendCommand.builder()
+      .build(message))
+      .getMessageId
+    val andreInboxPath = MailboxPath.inbox(ANDRE)
+    val andreInboxId: MailboxId = server.getProbe(classOf[MailboxProbeImpl]).createMailbox(andreInboxPath)
+
+    val request =
+      s"""{
+         |	"using": ["urn:ietf:params:jmap:core", "urn:ietf:params:jmap:mail", "urn:ietf:params:jmap:submission"],
+         |	"methodCalls": [
+         |		["EmailSubmission/set", {
+         |			"accountId": "$ACCOUNT_ID",
+         |			"create": {
+         |				"k1490": {
+         |					"emailId": "${messageId.serialize}",
+         |					"envelope": {
+         |						"mailFrom": {
+         |							"email": "${BOB.asString}",
+         |							"parameters": {
+         |							  "holdFor": "-1000"
+         |							}
+         |						},
+         |						"rcptTo": [{
+         |							"email": "${ANDRE.asString}"
+         |						}]
+         |					}
+         |				}
+         |			}
+         |		}, "c1"]
+         |	]
+         |}""".stripMargin
+
+    `with`()
+      .header(ACCEPT.toString, ACCEPT_RFC8621_VERSION_HEADER)
+      .body(request)
+      .post.prettyPeek()
+
+    CLOCK.setInstant(DATE.plusSeconds(77000))
+
+    // Ensure Andre did not receive the email
+    val requestAndre =
+      s"""{
+         |  "using": ["urn:ietf:params:jmap:core","urn:ietf:params:jmap:mail"],
+         |  "methodCalls": [[
+         |    "Email/query",
+         |    {
+         |      "accountId": "$ANDRE_ACCOUNT_ID",
+         |      "filter": {"inMailbox": "${andreInboxId.serialize}"}
+         |    },
+         |    "c1"]]
+         |}""".stripMargin
+    awaitAtMostTenSeconds.untilAsserted { () =>
+      val response = `given`(
+        baseRequestSpecBuilder(server)
+          .setAuth(authScheme(UserCredential(ANDRE, ANDRE_PASSWORD)))
+          .addHeader(ACCEPT.toString, ACCEPT_RFC8621_VERSION_HEADER)
+          .setBody(requestAndre)
+          .build, new ResponseSpecBuilder().build)
+        .post.prettyPeek()
+        .`then`
+        .statusCode(SC_OK)
+        .contentType(JSON)
+        .extract
+        .body
+        .asString
+
+      assertThatJson(response)
+        .inPath("methodResponses[0][1].ids")
+        .isArray
+        .hasSize(0)
+    }
+  }
+
+  @Test
+  def emailSubmissionSetCreateShouldDeliveryEmailWhenHoldForIsZero(server: GuiceJamesServer): Unit = {
+    val message: Message = Message.Builder
+      .of
+      .setSubject("test")
+      .setSender(BOB.asString)
+      .setFrom(BOB.asString)
+      .setTo(ANDRE.asString)
+      .setBody("testmail", StandardCharsets.UTF_8)
+      .build
+
+    val bobDraftsPath = MailboxPath.forUser(BOB, DefaultMailboxes.DRAFTS)
+    server.getProbe(classOf[MailboxProbeImpl]).createMailbox(bobDraftsPath)
+    val messageId: MessageId = server.getProbe(classOf[MailboxProbeImpl]).appendMessage(BOB.asString(), bobDraftsPath, AppendCommand.builder()
+      .build(message))
+      .getMessageId
+    val andreInboxPath = MailboxPath.inbox(ANDRE)
+    val andreInboxId: MailboxId = server.getProbe(classOf[MailboxProbeImpl]).createMailbox(andreInboxPath)
+
+    val request =
+      s"""{
+         |	"using": ["urn:ietf:params:jmap:core", "urn:ietf:params:jmap:mail", "urn:ietf:params:jmap:submission"],
+         |	"methodCalls": [
+         |		["EmailSubmission/set", {
+         |			"accountId": "$ACCOUNT_ID",
+         |			"create": {
+         |				"k1490": {
+         |					"emailId": "${messageId.serialize}",
+         |					"envelope": {
+         |						"mailFrom": {
+         |							"email": "${BOB.asString}",
+         |							"parameters": {
+         |							  "holdFor": "0"
+         |							}
+         |						},
+         |						"rcptTo": [{
+         |							"email": "${ANDRE.asString}"
+         |						}]
+         |					}
+         |				}
+         |			}
+         |		}, "c1"]
+         |	]
+         |}""".stripMargin
+
+    `with`()
+      .header(ACCEPT.toString, ACCEPT_RFC8621_VERSION_HEADER)
+      .body(request)
+      .post.prettyPeek()
+
+    // Ensure Andre receive the email immediately
     val requestAndre =
       s"""{
          |  "using": ["urn:ietf:params:jmap:core","urn:ietf:params:jmap:mail"],
@@ -417,4 +672,560 @@ trait EmailSubmissionSetMethodFutureReleaseContract {
         .hasSize(1)
     }
   }
+
+  @Test
+  def emailSubmissionSetCreateShouldBeRejectedEmailWhenHoldForIsNotANumber(server: GuiceJamesServer): Unit = {
+    val message: Message = Message.Builder
+      .of
+      .setSubject("test")
+      .setSender(BOB.asString)
+      .setFrom(BOB.asString)
+      .setTo(ANDRE.asString)
+      .setBody("testmail", StandardCharsets.UTF_8)
+      .build
+
+    val bobDraftsPath = MailboxPath.forUser(BOB, DefaultMailboxes.DRAFTS)
+    server.getProbe(classOf[MailboxProbeImpl]).createMailbox(bobDraftsPath)
+    val messageId: MessageId = server.getProbe(classOf[MailboxProbeImpl]).appendMessage(BOB.asString(), bobDraftsPath, AppendCommand.builder()
+      .build(message))
+      .getMessageId
+    val andreInboxPath = MailboxPath.inbox(ANDRE)
+    val andreInboxId: MailboxId = server.getProbe(classOf[MailboxProbeImpl]).createMailbox(andreInboxPath)
+
+    val request =
+      s"""{
+         |	"using": ["urn:ietf:params:jmap:core", "urn:ietf:params:jmap:mail", "urn:ietf:params:jmap:submission"],
+         |	"methodCalls": [
+         |		["EmailSubmission/set", {
+         |			"accountId": "$ACCOUNT_ID",
+         |			"create": {
+         |				"k1490": {
+         |					"emailId": "${messageId.serialize}",
+         |					"envelope": {
+         |						"mailFrom": {
+         |							"email": "${BOB.asString}",
+         |							"parameters": {
+         |							  "holdFor": "not a number",
+         |							}
+         |						},
+         |						"rcptTo": [{
+         |							"email": "${ANDRE.asString}"
+         |						}]
+         |					}
+         |				}
+         |			}
+         |		}, "c1"]
+         |	]
+         |}""".stripMargin
+
+    `with`()
+      .header(ACCEPT.toString, ACCEPT_RFC8621_VERSION_HEADER)
+      .body(request)
+      .post
+
+    CLOCK.setInstant(DATE.plusSeconds(77000))
+
+    // Ensure Andre did not receive the email
+    val requestAndre =
+      s"""{
+         |  "using": ["urn:ietf:params:jmap:core","urn:ietf:params:jmap:mail"],
+         |  "methodCalls": [[
+         |    "Email/query",
+         |    {
+         |      "accountId": "$ANDRE_ACCOUNT_ID",
+         |      "filter": {"inMailbox": "${andreInboxId.serialize}"}
+         |    },
+         |    "c1"]]
+         |}""".stripMargin
+    awaitAtMostTenSeconds.untilAsserted { () =>
+      val response = `given`(
+        baseRequestSpecBuilder(server)
+          .setAuth(authScheme(UserCredential(ANDRE, ANDRE_PASSWORD)))
+          .addHeader(ACCEPT.toString, ACCEPT_RFC8621_VERSION_HEADER)
+          .setBody(requestAndre)
+          .build, new ResponseSpecBuilder().build)
+        .post
+        .`then`
+        .statusCode(SC_OK)
+        .extract
+        .body
+        .asString
+
+      assertThatJson(response)
+        .inPath("methodResponses[0][1].ids")
+        .isArray
+        .hasSize(0)
+    }
+  }
+
+  @Test
+  def emailSubmissionSetCreateShouldDelayEmailWithHoldUntil(server: GuiceJamesServer): Unit = {
+    val message: Message = Message.Builder
+      .of
+      .setSubject("test")
+      .setSender(BOB.asString)
+      .setFrom(BOB.asString)
+      .setTo(ANDRE.asString)
+      .setBody("testmail", StandardCharsets.UTF_8)
+      .build
+
+    val bobDraftsPath = MailboxPath.forUser(BOB, DefaultMailboxes.DRAFTS)
+    server.getProbe(classOf[MailboxProbeImpl]).createMailbox(bobDraftsPath)
+    val messageId: MessageId = server.getProbe(classOf[MailboxProbeImpl]).appendMessage(BOB.asString(), bobDraftsPath, AppendCommand.builder()
+      .build(message))
+      .getMessageId
+    val andreInboxPath = MailboxPath.inbox(ANDRE)
+    val andreInboxId: MailboxId = server.getProbe(classOf[MailboxProbeImpl]).createMailbox(andreInboxPath)
+
+    val request =
+      s"""{
+         |	"using": ["urn:ietf:params:jmap:core", "urn:ietf:params:jmap:mail", "urn:ietf:params:jmap:submission"],
+         |	"methodCalls": [
+         |		["EmailSubmission/set", {
+         |			"accountId": "$ACCOUNT_ID",
+         |			"create": {
+         |				"k1490": {
+         |					"emailId": "${messageId.serialize}",
+         |					"envelope": {
+         |						"mailFrom": {
+         |							"email": "${BOB.asString}",
+         |							"parameters": {
+         |							  "holdUntil": "2023-04-14T15:00:00Z"
+         |							}
+         |						},
+         |						"rcptTo": [{
+         |							"email": "${ANDRE.asString}"
+         |						}]
+         |					}
+         |				}
+         |			}
+         |		}, "c1"]
+         |	]
+         |}""".stripMargin
+
+    `with`()
+      .header(ACCEPT.toString, ACCEPT_RFC8621_VERSION_HEADER)
+      .body(request)
+      .post.prettyPeek()
+
+    CLOCK.setInstant(DATE.plusSeconds(1))
+
+    // Ensure Andre did not receive the email
+    val requestAndre =
+      s"""{
+         |  "using": ["urn:ietf:params:jmap:core","urn:ietf:params:jmap:mail"],
+         |  "methodCalls": [[
+         |    "Email/query",
+         |    {
+         |      "accountId": "$ANDRE_ACCOUNT_ID",
+         |      "filter": {"inMailbox": "${andreInboxId.serialize}"}
+         |    },
+         |    "c1"]]
+         |}""".stripMargin
+    awaitAtMostTenSeconds.untilAsserted { () =>
+      val response = `given`(
+        baseRequestSpecBuilder(server)
+          .setAuth(authScheme(UserCredential(ANDRE, ANDRE_PASSWORD)))
+          .addHeader(ACCEPT.toString, ACCEPT_RFC8621_VERSION_HEADER)
+          .setBody(requestAndre)
+          .build, new ResponseSpecBuilder().build)
+        .post
+        .`then`
+        .statusCode(SC_OK)
+        .contentType(JSON)
+        .extract
+        .body
+        .asString
+
+      assertThatJson(response)
+        .inPath("methodResponses[0][1].ids")
+        .isArray
+        .hasSize(0)
+    }
+  }
+
+  @Test
+  def emailSubmissionSetCreateShouldDeliverEmailWhenHoldUntilExpired(server: GuiceJamesServer): Unit = {
+    val message: Message = Message.Builder
+      .of
+      .setSubject("test")
+      .setSender(BOB.asString)
+      .setFrom(BOB.asString)
+      .setTo(ANDRE.asString)
+      .setBody("testmail", StandardCharsets.UTF_8)
+      .build
+
+    val bobDraftsPath = MailboxPath.forUser(BOB, DefaultMailboxes.DRAFTS)
+    server.getProbe(classOf[MailboxProbeImpl]).createMailbox(bobDraftsPath)
+    val messageId: MessageId = server.getProbe(classOf[MailboxProbeImpl]).appendMessage(BOB.asString(), bobDraftsPath, AppendCommand.builder()
+      .build(message))
+      .getMessageId
+    val andreInboxPath = MailboxPath.inbox(ANDRE)
+    val andreInboxId: MailboxId = server.getProbe(classOf[MailboxProbeImpl]).createMailbox(andreInboxPath)
+
+    val request =
+      s"""{
+         |	"using": ["urn:ietf:params:jmap:core", "urn:ietf:params:jmap:mail", "urn:ietf:params:jmap:submission"],
+         |	"methodCalls": [
+         |		["EmailSubmission/set", {
+         |			"accountId": "$ACCOUNT_ID",
+         |			"create": {
+         |				"k1490": {
+         |					"emailId": "${messageId.serialize}",
+         |					"envelope": {
+         |						"mailFrom": {
+         |							"email": "${BOB.asString}",
+         |							"parameters": {
+         |							  "holdUntil": "2023-04-14T15:00:00Z"
+         |							}
+         |						},
+         |						"rcptTo": [{
+         |							"email": "${ANDRE.asString}"
+         |						}]
+         |					}
+         |				}
+         |			}
+         |		}, "c1"]
+         |	]
+         |}""".stripMargin
+
+    `with`()
+      .header(ACCEPT.toString, ACCEPT_RFC8621_VERSION_HEADER)
+      .body(request)
+      .post.prettyPeek()
+
+    CLOCK.setInstant(DATE.plusSeconds(77000))
+
+    val requestAndre =
+      s"""{
+         |  "using": ["urn:ietf:params:jmap:core","urn:ietf:params:jmap:mail"],
+         |  "methodCalls": [[
+         |    "Email/query",
+         |    {
+         |      "accountId": "$ANDRE_ACCOUNT_ID",
+         |      "filter": {"inMailbox": "${andreInboxId.serialize}"}
+         |    },
+         |    "c1"]]
+         |}""".stripMargin
+    awaitAtMostTenSeconds.untilAsserted { () =>
+      val response = `given`(
+        baseRequestSpecBuilder(server)
+          .setAuth(authScheme(UserCredential(ANDRE, ANDRE_PASSWORD)))
+          .addHeader(ACCEPT.toString, ACCEPT_RFC8621_VERSION_HEADER)
+          .setBody(requestAndre)
+          .build, new ResponseSpecBuilder().build)
+        .post
+        .`then`
+        .statusCode(SC_OK)
+        .contentType(JSON)
+        .extract
+        .body
+        .asString
+
+      assertThatJson(response)
+        .inPath("methodResponses[0][1].ids")
+        .isArray
+        .hasSize(1)
+    }
+  }
+
+  @Test
+  def emailSubmissionSetCreateShouldBeRejectedEmailWhenHoldUntilIsInThePast(server: GuiceJamesServer): Unit = {
+    val message: Message = Message.Builder
+      .of
+      .setSubject("test")
+      .setSender(BOB.asString)
+      .setFrom(BOB.asString)
+      .setTo(ANDRE.asString)
+      .setBody("testmail", StandardCharsets.UTF_8)
+      .build
+
+    val bobDraftsPath = MailboxPath.forUser(BOB, DefaultMailboxes.DRAFTS)
+    server.getProbe(classOf[MailboxProbeImpl]).createMailbox(bobDraftsPath)
+    val messageId: MessageId = server.getProbe(classOf[MailboxProbeImpl]).appendMessage(BOB.asString(), bobDraftsPath, AppendCommand.builder()
+      .build(message))
+      .getMessageId
+    val andreInboxPath = MailboxPath.inbox(ANDRE)
+    val andreInboxId: MailboxId = server.getProbe(classOf[MailboxProbeImpl]).createMailbox(andreInboxPath)
+
+    val request =
+      s"""{
+         |	"using": ["urn:ietf:params:jmap:core", "urn:ietf:params:jmap:mail", "urn:ietf:params:jmap:submission"],
+         |	"methodCalls": [
+         |		["EmailSubmission/set", {
+         |			"accountId": "$ACCOUNT_ID",
+         |			"create": {
+         |				"k1490": {
+         |					"emailId": "${messageId.serialize}",
+         |					"envelope": {
+         |						"mailFrom": {
+         |							"email": "${BOB.asString}",
+         |							"parameters": {
+         |							  "holdUntil": "2023-04-13T15:00:00Z"
+         |							}
+         |						},
+         |						"rcptTo": [{
+         |							"email": "${ANDRE.asString}"
+         |						}]
+         |					}
+         |				}
+         |			}
+         |		}, "c1"]
+         |	]
+         |}""".stripMargin
+
+    `with`()
+      .header(ACCEPT.toString, ACCEPT_RFC8621_VERSION_HEADER)
+      .body(request)
+      .post.prettyPeek()
+
+    CLOCK.setInstant(DATE.plusSeconds(77000))
+
+    // Ensure Andre did not receive the email
+    val requestAndre =
+      s"""{
+         |  "using": ["urn:ietf:params:jmap:core","urn:ietf:params:jmap:mail"],
+         |  "methodCalls": [[
+         |    "Email/query",
+         |    {
+         |      "accountId": "$ANDRE_ACCOUNT_ID",
+         |      "filter": {"inMailbox": "${andreInboxId.serialize}"}
+         |    },
+         |    "c1"]]
+         |}""".stripMargin
+    awaitAtMostTenSeconds.untilAsserted { () =>
+      val response = `given`(
+        baseRequestSpecBuilder(server)
+          .setAuth(authScheme(UserCredential(ANDRE, ANDRE_PASSWORD)))
+          .addHeader(ACCEPT.toString, ACCEPT_RFC8621_VERSION_HEADER)
+          .setBody(requestAndre)
+          .build, new ResponseSpecBuilder().build)
+        .post
+        .`then`
+        .statusCode(SC_OK)
+        .contentType(JSON)
+        .extract
+        .body
+        .asString
+
+      assertThatJson(response)
+        .inPath("methodResponses[0][1].ids")
+        .isArray
+        .hasSize(0)
+    }
+  }
+
+  @Test
+  def emailSubmissionSetCreateShouldBeRejectedEmailWhenHoldUntilTooFar(server: GuiceJamesServer): Unit = {
+    val message: Message = Message.Builder
+      .of
+      .setSubject("test")
+      .setSender(BOB.asString)
+      .setFrom(BOB.asString)
+      .setTo(ANDRE.asString)
+      .setBody("testmail", StandardCharsets.UTF_8)
+      .build
+
+    val bobDraftsPath = MailboxPath.forUser(BOB, DefaultMailboxes.DRAFTS)
+    server.getProbe(classOf[MailboxProbeImpl]).createMailbox(bobDraftsPath)
+    val messageId: MessageId = server.getProbe(classOf[MailboxProbeImpl]).appendMessage(BOB.asString(), bobDraftsPath, AppendCommand.builder()
+      .build(message))
+      .getMessageId
+    val andreInboxPath = MailboxPath.inbox(ANDRE)
+    val andreInboxId: MailboxId = server.getProbe(classOf[MailboxProbeImpl]).createMailbox(andreInboxPath)
+
+    val request =
+      s"""{
+         |	"using": ["urn:ietf:params:jmap:core", "urn:ietf:params:jmap:mail", "urn:ietf:params:jmap:submission"],
+         |	"methodCalls": [
+         |		["EmailSubmission/set", {
+         |			"accountId": "$ACCOUNT_ID",
+         |			"create": {
+         |				"k1490": {
+         |					"emailId": "${messageId.serialize}",
+         |					"envelope": {
+         |						"mailFrom": {
+         |							"email": "${BOB.asString}",
+         |							"parameters": {
+         |							  "holdUntil": "2023-04-16T10:00:00Z"
+         |							}
+         |						},
+         |						"rcptTo": [{
+         |							"email": "${ANDRE.asString}"
+         |						}]
+         |					}
+         |				}
+         |			}
+         |		}, "c1"]
+         |	]
+         |}""".stripMargin
+
+    `with`()
+      .header(ACCEPT.toString, ACCEPT_RFC8621_VERSION_HEADER)
+      .body(request)
+      .post.prettyPeek()
+
+    CLOCK.setInstant(DATE.plusSeconds(77000))
+
+    // Ensure Andre did not receive the email
+    val requestAndre =
+      s"""{
+         |  "using": ["urn:ietf:params:jmap:core","urn:ietf:params:jmap:mail"],
+         |  "methodCalls": [[
+         |    "Email/query",
+         |    {
+         |      "accountId": "$ANDRE_ACCOUNT_ID",
+         |      "filter": {"inMailbox": "${andreInboxId.serialize}"}
+         |    },
+         |    "c1"]]
+         |}""".stripMargin
+    awaitAtMostTenSeconds.untilAsserted { () =>
+      val response = `given`(
+        baseRequestSpecBuilder(server)
+          .setAuth(authScheme(UserCredential(ANDRE, ANDRE_PASSWORD)))
+          .addHeader(ACCEPT.toString, ACCEPT_RFC8621_VERSION_HEADER)
+          .setBody(requestAndre)
+          .build, new ResponseSpecBuilder().build)
+        .post
+        .`then`
+        .statusCode(SC_OK)
+        .contentType(JSON)
+        .extract
+        .body
+        .asString
+
+      assertThatJson(response)
+        .inPath("methodResponses[0][1].ids")
+        .isArray
+        .hasSize(0)
+    }
+  }
+
+  @Test
+  def emailSubmissionSetCreateShouldSubmitedMailSuccessfullyWithHoldUntil(server: GuiceJamesServer): Unit = {
+    val message: Message = Message.Builder
+      .of
+      .setSubject("test")
+      .setSender(BOB.asString)
+      .setFrom(BOB.asString)
+      .setTo(ANDRE.asString)
+      .setBody("testmail", StandardCharsets.UTF_8)
+      .build
+
+    val bobDraftsPath = MailboxPath.forUser(BOB, DefaultMailboxes.DRAFTS)
+    server.getProbe(classOf[MailboxProbeImpl]).createMailbox(bobDraftsPath)
+    val messageId: MessageId = server.getProbe(classOf[MailboxProbeImpl]).appendMessage(BOB.asString(), bobDraftsPath, AppendCommand.builder()
+      .build(message))
+      .getMessageId
+
+    val request =
+      s"""{
+         |	"using": ["urn:ietf:params:jmap:core", "urn:ietf:params:jmap:mail", "urn:ietf:params:jmap:submission"],
+         |	"methodCalls": [
+         |		["EmailSubmission/set", {
+         |			"accountId": "$ACCOUNT_ID",
+         |			"create": {
+         |				"k1490": {
+         |					"emailId": "${messageId.serialize}",
+         |					"envelope": {
+         |						"mailFrom": {
+         |							"email": "${BOB.asString}",
+         |							"parameters": {
+         |							  "holdUntil": "2023-04-14T10:30:00Z"
+         |							}
+         |						},
+         |						"rcptTo": [{
+         |							"email": "${ANDRE.asString}"
+         |						}]
+         |					}
+         |				}
+         |			}
+         |		}, "c1"]
+         |	]
+         |}""".stripMargin
+
+    val greaterThanZero: Matcher[Integer] = Matchers.greaterThan(0)
+    `given`
+      .header(ACCEPT.toString, ACCEPT_RFC8621_VERSION_HEADER)
+      .body(request)
+      .when
+      .post
+      .`then`
+      .statusCode(SC_OK)
+      .body("methodResponses[0][1].created.k1490.id", CharSequenceLength.hasLength(greaterThanZero))
+  }
+
+  @Disabled("Not yet implemented")
+  @Test
+  def emailSubmissionSetCreateShouldBeRejectedWhenMailContainsBothHoldForAndHoldUntil(server: GuiceJamesServer): Unit = {
+    val message: Message = Message.Builder
+      .of
+      .setSubject("test")
+      .setSender(BOB.asString)
+      .setFrom(BOB.asString)
+      .setTo(ANDRE.asString)
+      .setBody("testmail", StandardCharsets.UTF_8)
+      .build
+
+    val bobDraftsPath = MailboxPath.forUser(BOB, DefaultMailboxes.DRAFTS)
+    server.getProbe(classOf[MailboxProbeImpl]).createMailbox(bobDraftsPath)
+    val messageId: MessageId = server.getProbe(classOf[MailboxProbeImpl]).appendMessage(BOB.asString(), bobDraftsPath, AppendCommand.builder()
+      .build(message))
+      .getMessageId
+
+    val request =
+      s"""{
+         |	"using": ["urn:ietf:params:jmap:core", "urn:ietf:params:jmap:mail", "urn:ietf:params:jmap:submission"],
+         |	"methodCalls": [
+         |		["EmailSubmission/set", {
+         |			"accountId": "$ACCOUNT_ID",
+         |			"create": {
+         |				"k1490": {
+         |					"emailId": "${messageId.serialize}",
+         |					"envelope": {
+         |						"mailFrom": {
+         |							"email": "${BOB.asString}",
+         |							"parameters": {
+         |							  "holdUntil": "2023-04-14T10:30:00Z",
+         |                "holdFor:": "76000"
+         |							}
+         |						},
+         |						"rcptTo": [{
+         |							"email": "${ANDRE.asString}"
+         |						}]
+         |					}
+         |				}
+         |			}
+         |		}, "c1"]
+         |	]
+         |}""".stripMargin
+
+    val isZero: Matcher[Integer] = Matchers.is(0)
+    `given`
+      .header(ACCEPT.toString, ACCEPT_RFC8621_VERSION_HEADER)
+      .body(request)
+      .when
+      .post
+      .`then`
+      .statusCode(SC_OK)
+      .body("methodResponses[0][1].created.k1490.id", CharSequenceLength.hasLength(isZero))
+  }
+  // TODO testA: holdFor with a biiiiiig number => EmailSubmission/set-create should be rejected with an error describing the problem
+  // TODO testB: holdFor with a negative number => EmailSubmission/set-create should be rejected with an error describing the problem
+  // TODO testC: holdFor with a zero number (delivered immediately) => EmailSubmission/set-create should be rejected with an error describing the problem
+  // TODO testD: holdFor with a non numeric value => EmailSubmission/set-create should be rejected with an error describing the problem
+  // TODO testE: holdUntil ensure that the email is delayed => Same emailSubmissionSetCreateShouldDelayEmailWithHoldFor
+  // TODO testF: holdUntil ensure that the email is eventually delivered => Same emailSubmissionSetCreateShouldDeliverEmailWhenHoldForExpired
+  // TODO testE: holdUntil date in the past => EmailSubmission/set-create should be rejected with an error describing the problem
+  // TODO testG: holdUntil date in the too far future => EmailSubmission/set-create should be rejected with an error describing the problem
+  // TODO testH: holdUntil with a string that is not a valid date => EmailSubmission/set-create should be rejected with an error describing the problem
+  // TODO testI: unknown mailParameters should be rejected with an error describing the problem
+  // TODO testJ: holdFor/holdUntil should be rejected in rcpt mailAddresses
+  // TODO testK: specifying holdFor AND holdUntil should be rejected with an error describing the problem
+
+  // AFTER...
+  // TODO testL: when I use holdUntil then EmailSubmission/set create response contains sendAt property matching holdUntil value
+  // TODO testM: when I use holdFor then EmailSubmission/set create response contains sendAt property matching holdUntil value
+
+
 }

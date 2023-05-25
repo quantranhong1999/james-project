@@ -312,6 +312,11 @@ public class JMSCacheableMailQueue implements ManageableMailQueue, JMSSupport, M
         return Mono.fromRunnable(Throwing.runnable(() -> enQueue(mail)).sneakyThrow());
     }
 
+    @Override
+    public Publisher<Void> enqueueReactive(Mail mail, Duration delay) {
+        return null;
+    }
+
     /**
      * Produce the mail to the JMS Queue
      */

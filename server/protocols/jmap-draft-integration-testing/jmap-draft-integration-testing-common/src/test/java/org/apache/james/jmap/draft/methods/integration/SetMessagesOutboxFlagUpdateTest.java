@@ -103,6 +103,11 @@ public abstract class SetMessagesOutboxFlagUpdateTest {
                 }
 
                 @Override
+                public Publisher<Void> enqueueReactive(Mail mail, Duration delay) {
+                    return null;
+                }
+
+                @Override
                 public void enQueue(Mail mail) {
 
                 }

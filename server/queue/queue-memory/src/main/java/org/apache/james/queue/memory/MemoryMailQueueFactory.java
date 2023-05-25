@@ -176,6 +176,11 @@ public class MemoryMailQueueFactory implements MailQueueFactory<MemoryMailQueueF
             return Mono.fromRunnable(Throwing.runnable(() -> enQueue(mail)).sneakyThrow());
         }
 
+        @Override
+        public Publisher<Void> enqueueReactive(Mail mail, Duration delay) {
+            return Mono.fromRunnable(Throwing.runnable(() -> enQueue(mail, delay)).sneakyThrow());
+        }
+
         private ZonedDateTime calculateNextDelivery(Duration delay) {
             if (!delay.isNegative()) {
                 try {
