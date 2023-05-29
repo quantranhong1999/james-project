@@ -366,7 +366,7 @@ trait EmailSubmissionSetMethodFutureReleaseContract {
          |						"mailFrom": {
          |							"email": "${BOB.asString}",
          |							"parameters": {
-         |							  "holdFor": "76000"
+         |							  "holdFor": "4"
          |							}
          |						},
          |						"rcptTo": [{
@@ -384,7 +384,9 @@ trait EmailSubmissionSetMethodFutureReleaseContract {
       .body(request)
       .post.prettyPeek()
 
-    updatableTickingClock.setInstant(DATE.plusSeconds(77000))
+    updatableTickingClock.setInstant(DATE.plusSeconds(4)) // nếu set = 3 < delay (4) thì test sẽ fail => chứng tỏ về logic là delay có hoạt động
+    // nma tại sao delay lớn thì lại k assert dc? TODO investigate
+
 
     val requestAndre =
       s"""{
