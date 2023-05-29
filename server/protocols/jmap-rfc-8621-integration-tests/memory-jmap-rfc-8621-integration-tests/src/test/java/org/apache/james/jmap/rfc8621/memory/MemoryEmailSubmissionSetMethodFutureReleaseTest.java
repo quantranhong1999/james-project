@@ -21,9 +21,9 @@ package org.apache.james.jmap.rfc8621.memory;
 
 import static org.apache.james.data.UsersRepositoryModuleChooser.Implementation.DEFAULT;
 
-import java.time.Clock;
 import java.util.concurrent.ThreadLocalRandom;
 
+import org.apache.james.ClockExtension;
 import org.apache.james.JamesServerBuilder;
 import org.apache.james.JamesServerExtension;
 import org.apache.james.MemoryJamesConfiguration;
@@ -46,7 +46,7 @@ class MemoryEmailSubmissionSetMethodFutureReleaseTest implements EmailSubmission
             .build())
         .server(configuration -> MemoryJamesServerMain.createServer(configuration)
             .overrideWith(new TestJMAPServerModule()))
-        .overrideServerModule(binder -> binder.bind(Clock.class).toInstance(EmailSubmissionSetMethodFutureReleaseContract.CLOCK()))
+        .extension(new ClockExtension())
         .overrideServerModule(binder -> binder.bind(Boolean.class).annotatedWith(Names.named("supportsDelaySends")).toInstance(true))
         .build();
 

@@ -332,7 +332,7 @@ trait EmailSubmissionSetMethodFutureReleaseContract {
   }
 
   @Test
-  def emailSubmissionSetCreateShouldDeliverEmailWhenHoldForExpired(server: GuiceJamesServer): Unit = {
+  def emailSubmissionSetCreateShouldDeliverEmailWhenHoldForExpired(server: GuiceJamesServer, updatableTickingClock: UpdatableTickingClock): Unit = {
     val message: Message = Message.Builder
       .of
       .setSubject("test")
@@ -349,6 +349,9 @@ trait EmailSubmissionSetMethodFutureReleaseContract {
       .getMessageId
     val andreInboxPath = MailboxPath.inbox(ANDRE)
     val andreInboxId: MailboxId = server.getProbe(classOf[MailboxProbeImpl]).createMailbox(andreInboxPath)
+
+    println("Clock instance in contract test: " + updatableTickingClock)
+    updatableTickingClock.setInstant(DATE)
 
     val request =
       s"""{
@@ -381,7 +384,7 @@ trait EmailSubmissionSetMethodFutureReleaseContract {
       .body(request)
       .post.prettyPeek()
 
-    CLOCK.setInstant(DATE.plusSeconds(77000))
+    updatableTickingClock.setInstant(DATE.plusSeconds(77000))
 
     val requestAndre =
       s"""{
@@ -401,7 +404,7 @@ trait EmailSubmissionSetMethodFutureReleaseContract {
           .addHeader(ACCEPT.toString, ACCEPT_RFC8621_VERSION_HEADER)
           .setBody(requestAndre)
           .build, new ResponseSpecBuilder().build)
-        .post.prettyPeek()
+        .post
         .`then`
         .statusCode(SC_OK)
         .contentType(JSON)

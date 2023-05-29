@@ -21,7 +21,7 @@ package org.apache.james.jmap.method
 
 import java.io.InputStream
 import java.time.format.DateTimeFormatter
-import java.time.{Clock, Duration, Instant, LocalDateTime, ZoneId}
+import java.time.{Clock, Duration, LocalDateTime, ZoneId}
 
 import eu.timepit.refined.auto._
 import eu.timepit.refined.refineV
@@ -150,14 +150,13 @@ class EmailSubmissionSetMethod @Inject()(serializer: EmailSubmissionSetSerialize
                                          mailQueueFactory: MailQueueFactory[_ <: MailQueue],
                                          canSendFrom: CanSendFrom,
                                          emailSetMethod: EmailSetMethod,
+                                         clock: Clock,
                                          val metricFactory: MetricFactory,
                                          val sessionSupplier: SessionSupplier,
                                          val sessionTranslator: SessionTranslator) extends MethodRequiringAccountId[EmailSubmissionSetRequest] with Startable {
   override val methodName: MethodName = MethodName("EmailSubmission/set")
   override val requiredCapabilities: Set[CapabilityIdentifier] = Set(JMAP_CORE, EMAIL_SUBMISSION)
   var queue: MailQueue = _
-  val DATE = Instant.parse("2023-04-14T10:00:00.00Z")
-  val CLOCK = Clock.fixed(DATE, ZoneId.of("Z"))
   def init: Unit = queue = mailQueueFactory.createQueue(SPOOL)
 
   @PreDestroy def dispose: Unit =
@@ -283,6 +282,7 @@ class EmailSubmissionSetMethod @Inject()(serializer: EmailSubmissionSetSerialize
      EmailSubmissionCreationResponse(submissionId) -> request.emailId
     }
   private def getDuration(mailParameters: Option[Map[ParameterName, Option[ParameterValue]]]): Duration = {
+    println("Clock instance in EmailSubmissionSetMethod: " + clock)
     if (mailParameters.isEmpty) {
       Duration.ofSeconds(0)
     }
@@ -294,7 +294,7 @@ class EmailSubmissionSetMethod @Inject()(serializer: EmailSubmissionSetSerialize
         Duration.ofSeconds(parameterValue.toLong)
       } else if (parameterName.eq("holdUntil")) {
         val formatter = DateTimeFormatter.ISO_INSTANT.withZone(ZoneId.of("Z"))
-        Duration.between(LocalDateTime.now(CLOCK), LocalDateTime.parse(parameterValue, formatter))
+        Duration.between(LocalDateTime.now(clock), LocalDateTime.parse(parameterValue, formatter))
       } else Duration.ofSeconds(-1);
     } else null
   }

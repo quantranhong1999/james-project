@@ -184,6 +184,7 @@ public class MemoryMailQueueFactory implements MailQueueFactory<MemoryMailQueueF
         private ZonedDateTime calculateNextDelivery(Duration delay) {
             if (!delay.isNegative()) {
                 try {
+                    System.out.println("Clock instance in MemoryMailQueueFactory: " + clock);
                     return ZonedDateTime.now(clock).plus(delay);
                 } catch (DateTimeException | ArithmeticException e) {
                     return Instant.ofEpochMilli(Long.MAX_VALUE).atZone(ZoneId.of("UTC"));

@@ -35,6 +35,7 @@ public class ClockExtension implements GuiceModuleTestExtension {
     @Override
     public void beforeEach(ExtensionContext extensionContext) {
         clock = new UpdatableTickingClock(Instant.now());
+        System.out.println("instance clock in clock extension: " + clock);
     }
 
     @Override
