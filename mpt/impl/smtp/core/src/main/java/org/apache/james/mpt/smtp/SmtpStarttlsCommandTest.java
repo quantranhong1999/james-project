@@ -32,7 +32,7 @@ public abstract class SmtpStarttlsCommandTest {
     public static final String PASSWORD = "secret";
 
     protected SmtpHostSystem hostSystem;
-    private SimpleScriptedTestProtocol scriptedTest;
+    protected SimpleScriptedTestProtocol scriptedTest;
 
     @BeforeEach
     void setUp(SmtpHostSystem hostSystem) throws Exception {

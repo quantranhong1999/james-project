@@ -79,6 +79,10 @@ public class DockerPulsarExtension implements
         return configuration;
     }
 
+    public DockerPulsar getDockerPulsar() {
+        return dockerPulsar;
+    }
+
     @Override
     public void beforeAll(ExtensionContext context) throws PulsarClientException, PulsarAdminException {
         container.start();

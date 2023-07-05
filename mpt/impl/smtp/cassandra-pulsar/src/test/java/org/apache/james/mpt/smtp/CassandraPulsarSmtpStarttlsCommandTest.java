@@ -30,17 +30,20 @@ import org.apache.james.TestingSmtpRelayJamesServerBuilder;
 import org.apache.james.junit.categories.Unstable;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 @Tag(Unstable.TAG)
 public class CassandraPulsarSmtpStarttlsCommandTest extends SmtpStarttlsCommandTest {
+
+    private static PulsarExtension pulsarExtension = new PulsarExtension();
 
     @Order(1)
     @RegisterExtension
     static JamesServerExtension testExtension = TestingSmtpRelayJamesServerBuilder.forConfiguration(c -> c)
             .extension(new DockerOpenSearchExtension())
             .extension(new CassandraExtension())
-            .extension(new PulsarExtension())
+            .extension(pulsarExtension)
             .extension(new InMemoryDnsExtension())
             .server(Main::createServer)
             .lifeCycle(JamesServerExtension.Lifecycle.PER_TEST)
@@ -49,4 +52,19 @@ public class CassandraPulsarSmtpStarttlsCommandTest extends SmtpStarttlsCommandT
     @Order(2)
     @RegisterExtension
     static SmtpTestExtension smtpTestExtension = new SmtpTestExtension(SMTP_START_TLS_SERVER, testExtension);
+
+    @Test
+    void starttlsShouldWork() throws Exception {
+        var dockerPulsar = pulsarExtension.getDockerPulsar();
+        var pulsarConfiguration = dockerPulsar.getConfiguration();
+        System.out.println(String.format("Pulsar broker URL %s, Pulsar admin URL %s", pulsarConfiguration.brokerUri(), pulsarConfiguration.adminUri()));
+        System.out.println(dockerPulsar.getAdminClient().brokerStats().getTopics());
+//        System.out.println(testExtension.getGuiceJamesServer().getProbe(JmapGuiceProbe.class)
+//            .getJmapPort
+//            .getValue);
+
+        System.out.println("Starting to sleep...");
+        Thread.sleep(1000000000L);
+        scriptedTest.run("starttls");
+    }
 }

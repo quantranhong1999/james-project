@@ -40,8 +40,10 @@ import org.apache.james.mailbox.model.{MailboxId, MailboxPath, MessageId}
 import org.apache.james.mime4j.dom.Message
 import org.apache.james.modules.MailboxProbeImpl
 import org.apache.james.utils.{DataProbeImpl, UpdatableTickingClock}
+import org.assertj.core.api.Assertions
 import org.awaitility.Awaitility
 import org.awaitility.Durations.ONE_HUNDRED_MILLISECONDS
+import org.awaitility.core.ConditionTimeoutException
 import org.hamcrest.text.CharSequenceLength
 import org.hamcrest.{Matcher, Matchers}
 import org.junit.jupiter.api.{BeforeEach, Tag, Test}
@@ -798,8 +800,7 @@ trait EmailSubmissionSetMethodFutureReleaseContract {
       .body(request)
       .post
 
-    updatableTickingClock.setInstant(DATE.plusSeconds(18000))
-
+    // assert that no mail is sent before delay is expired...
     val requestAndre =
       s"""{
          |  "using": ["urn:ietf:params:jmap:core","urn:ietf:params:jmap:mail"],
@@ -811,6 +812,34 @@ trait EmailSubmissionSetMethodFutureReleaseContract {
          |    },
          |    "c1"]]
          |}""".stripMargin
+
+    // await 5 second and make sure no mail is sent, rather than assert no mail is sent would be true right away...
+    Assertions.assertThatThrownBy(() => {
+      calmlyAwait.atMost(5, TimeUnit.SECONDS).untilAsserted { () =>
+        val response = `given`(
+          baseRequestSpecBuilder(server)
+            .setAuth(authScheme(UserCredential(ANDRE, ANDRE_PASSWORD)))
+            .addHeader(ACCEPT.toString, ACCEPT_RFC8621_VERSION_HEADER)
+            .setBody(requestAndre)
+            .build, new ResponseSpecBuilder().build)
+          .post
+          .`then`
+          .statusCode(SC_OK)
+          .contentType(JSON)
+          .extract
+          .body
+          .asString
+
+        assertThatJson(response)
+          .inPath("methodResponses[0][1].ids")
+          .isArray
+          .hasSizeGreaterThan(0)
+      }
+    })
+      .isInstanceOf(classOf[ConditionTimeoutException])
+
+    updatableTickingClock.setInstant(DATE.plusSeconds(18000))
+
     awaitAtMostTenSeconds.untilAsserted { () =>
       val response = `given`(
         baseRequestSpecBuilder(server)

@@ -56,4 +56,8 @@ public class PulsarExtension implements GuiceModuleTestExtension {
             return Modules.combine(binder -> binder.bind(PulsarConfiguration.class)
                             .toInstance(pulsar.getConfiguration()));
     }
+
+    public DockerPulsarExtension.DockerPulsar getDockerPulsar() {
+        return pulsar.getDockerPulsar();
+    }
 }
