@@ -20,7 +20,7 @@
 package org.apache.james.jmap.rfc8621.contract
 
 import java.nio.charset.StandardCharsets
-import java.time.{Instant, LocalDateTime}
+import java.time.{Duration, Instant, LocalDateTime}
 import java.util.concurrent.TimeUnit
 
 import io.netty.handler.codec.http.HttpHeaderNames.ACCEPT
@@ -43,7 +43,7 @@ import org.apache.james.utils.{DataProbeImpl, UpdatableTickingClock}
 import org.assertj.core.api.Assertions
 import org.awaitility.Awaitility
 import org.awaitility.Durations.ONE_HUNDRED_MILLISECONDS
-import org.awaitility.core.ConditionTimeoutException
+import org.awaitility.core.{ConditionTimeoutException, ThrowingRunnable}
 import org.hamcrest.text.CharSequenceLength
 import org.hamcrest.{Matcher, Matchers}
 import org.junit.jupiter.api.{BeforeEach, Tag, Test}
@@ -717,6 +717,7 @@ trait EmailSubmissionSetMethodFutureReleaseContract {
     updatableTickingClock.setInstant(DATE.plusSeconds(1))
 
     // Ensure Andre did not receive the email
+    // assert that no mail is sent before immediately (say at least 5 second)
     val requestAndre =
       s"""{
          |  "using": ["urn:ietf:params:jmap:core","urn:ietf:params:jmap:mail"],
@@ -728,7 +729,9 @@ trait EmailSubmissionSetMethodFutureReleaseContract {
          |    },
          |    "c1"]]
          |}""".stripMargin
-    awaitAtMostTenSeconds.untilAsserted { () =>
+
+    // await 5 second and make sure no mail is sent, rather than assert no mail is sent would be true right away...
+    val mailShouldBeSentToAndreInbox: ThrowingRunnable = () => {
       val response = `given`(
         baseRequestSpecBuilder(server)
           .setAuth(authScheme(UserCredential(ANDRE, ANDRE_PASSWORD)))
@@ -746,9 +749,15 @@ trait EmailSubmissionSetMethodFutureReleaseContract {
       assertThatJson(response)
         .inPath("methodResponses[0][1].ids")
         .isArray
-        .hasSize(0)
+        .hasSize(1)
     }
+
+    assertSomethingNotHappenDuringAPeriod(mailShouldBeSentToAndreInbox, Duration.ofSeconds(5))
   }
+
+  def assertSomethingNotHappenDuringAPeriod(assertion: ThrowingRunnable, duration: Duration): Unit =
+    Assertions.assertThatThrownBy(() => calmlyAwait.atMost(duration).untilAsserted(assertion))
+      .isInstanceOf(classOf[ConditionTimeoutException])
 
   @Test
   def emailSubmissionSetCreateShouldDeliverEmailWhenHoldUntilExpired(server: GuiceJamesServer, updatableTickingClock: UpdatableTickingClock): Unit = {
