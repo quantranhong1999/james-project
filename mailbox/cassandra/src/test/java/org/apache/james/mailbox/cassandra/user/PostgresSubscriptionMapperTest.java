@@ -19,13 +19,20 @@
 
 package org.apache.james.mailbox.cassandra.user;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
+import org.apache.james.core.Username;
+import org.apache.james.mailbox.exception.SubscriptionException;
 import org.apache.james.mailbox.store.user.SubscriptionMapper;
 import org.apache.james.mailbox.store.user.SubscriptionMapperTest;
+import org.apache.james.mailbox.store.user.model.Subscription;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -81,5 +88,17 @@ public class PostgresSubscriptionMapperTest extends SubscriptionMapperTest {
 
     protected SubscriptionMapper createSubscriptionMapper() {
         return new PostgresSubscriptionMapper(postgresqlConnectionFactory);
+    }
+
+    @Test
+    void rlsExperimentSetup() throws SubscriptionException {
+        Subscription subscriptionA = new Subscription(Username.of("usera@a.com"), "mailbox1");
+        testee.save(subscriptionA);
+        Subscription subscriptionB = new Subscription(Username.of("userb@b.com"), "mailbox2");
+        testee.save(subscriptionB);
+
+        List<Subscription> results = testee.findSubscriptionsForUser(Username.of("usera@a.com"));
+
+        assertThat(results).containsOnly(subscriptionA);
     }
 }

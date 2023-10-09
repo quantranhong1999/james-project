@@ -35,7 +35,7 @@ public abstract class SubscriptionMapperTest {
     private static final String MAILBOX_1 = "mailbox1";
     private static final String MAILBOX_2 = "mailbox2";
 
-    private SubscriptionMapper testee;
+    protected SubscriptionMapper testee;
 
     protected abstract SubscriptionMapper createSubscriptionMapper();
 

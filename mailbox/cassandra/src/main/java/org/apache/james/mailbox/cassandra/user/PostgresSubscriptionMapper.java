@@ -21,6 +21,7 @@ package org.apache.james.mailbox.cassandra.user;
 
 import java.util.List;
 
+import org.apache.james.core.Domain;
 import org.apache.james.core.Username;
 import org.apache.james.mailbox.exception.SubscriptionException;
 import org.apache.james.mailbox.store.user.SubscriptionMapper;
@@ -58,10 +59,11 @@ public class PostgresSubscriptionMapper implements SubscriptionMapper {
 
     @Override
     public Mono<Void> saveReactive(Subscription subscription) {
-        return connection.flatMapMany(c -> c.createStatement("INSERT INTO subscription (username, mailbox) VALUES ($1, $2) " +
-                    "ON CONFLICT (username, mailbox) DO NOTHING")
+        return connection.flatMapMany(c -> c.createStatement("INSERT INTO subscription (username, mailbox, domain) VALUES ($1, $2, $3) " +
+                    "ON CONFLICT (username, mailbox, domain) DO NOTHING")
                 .bind("$1", subscription.getUser().asString())
                 .bind("$2", subscription.getMailbox())
+                .bind("$3", subscription.getUser().getDomainPart().map(Domain::asString).orElse(""))
                 .execute())
             .flatMap(Result::getRowsUpdated)
             .collectList()
