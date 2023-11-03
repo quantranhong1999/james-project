@@ -21,9 +21,14 @@ package org.apache.james.backends.postgres;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Duration;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.apache.james.backends.postgres.utils.JamesPostgresConnectionFactory;
 import org.apache.james.backends.postgres.utils.SimpleJamesPostgresConnectionFactory;
 import org.apache.james.core.Domain;
+import org.apache.james.util.concurrency.ConcurrentTestRunner;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.GenericContainer;
@@ -33,7 +38,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import io.r2dbc.postgresql.PostgresqlConnectionConfiguration;
 import io.r2dbc.postgresql.PostgresqlConnectionFactory;
-import io.r2dbc.spi.Connection;
+import io.r2dbc.postgresql.api.PostgresqlConnection;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -90,11 +95,18 @@ public class SimpleJamesPostgresConnectionFactoryTest extends JamesPostgresConne
     }
 
     @Test
-    void factoryShouldNotCreateNewConnectionWhenDomainsAreTheSame() {
-        Connection connectionOne = jamesPostgresConnectionFactory.getConnection(Domain.of("james")).block();
-        Connection connectionTwo = jamesPostgresConnectionFactory.getConnection(Domain.of("james")).block();
+    void factoryShouldNotCreateNewConnectionWhenDomainsAreTheSame() throws Exception {
+        Set<PostgresqlConnection> connectionSet = ConcurrentHashMap.newKeySet();
 
-        assertThat(connectionOne == connectionTwo).isTrue();
+        ConcurrentTestRunner.builder()
+            .reactorOperation((threadNumber, step) -> jamesPostgresConnectionFactory.getConnection(Domain.of("james"))
+                .doOnNext(connectionSet::add)
+                .then())
+            .threadCount(10)
+            .operationCount(100)
+            .runSuccessfullyWithin(Duration.ofMinutes(1));
+
+        assertThat(connectionSet).hasSize(1);
     }
 
 }

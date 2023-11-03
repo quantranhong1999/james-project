@@ -64,14 +64,20 @@ public class SimpleJamesPostgresConnectionFactory implements JamesPostgresConnec
 
     private Mono<PostgresqlConnection> create(Domain domain) {
         return connectionFactory.create()
-            .flatMap(connection -> connection.createStatement("SET " + DOMAIN_ATTRIBUTE + " TO '" + domain.asString() + "'") // It should be set value via Bind, but it doesn't work
-                .execute()
-                .then()
-                .doOnError(e -> LOGGER.error("Error while creating connection for domain {}", domain, e))
-                .then(Mono.just(connection))
-                .doOnSuccess(sessionConnection -> {
-                    mapDomainToConnection.put(domain, sessionConnection);
-                    LOGGER.info("Connection created for domain {}", domain);
-                }));
+            .flatMap(createdConnection -> {
+                System.out.println("created connection: " + createdConnection);
+                mapDomainToConnection.putIfAbsent(domain, createdConnection);
+                if (createdConnection != mapDomainToConnection.get(domain)) {
+                    System.out.println("closing connection: " + createdConnection);
+                    return createdConnection.close()
+                        .thenReturn(mapDomainToConnection.get(domain));
+                } else {
+                    return createdConnection.createStatement("SET " + DOMAIN_ATTRIBUTE + " TO '" + domain.asString() + "'") // It should be set value via Bind, but it doesn't work
+                        .execute()
+                        .then()
+                        .doOnError(e -> LOGGER.error("Error while setting domain attribute for domain {}", domain, e))
+                        .thenReturn(createdConnection);
+                }
+            });
     }
 }
