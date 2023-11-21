@@ -84,11 +84,6 @@ public class PostgresExecutor {
             .flatMapMany(queryFunction);
     }
 
-    public Mono<List<Record>> executeSingleRowList(Function<DSLContext, Mono<List<Record>>> queryFunction) {
-        return dslContext()
-            .flatMap(queryFunction);
-    }
-
     public Mono<Record> executeRow(Function<DSLContext, Mono<Record>> queryFunction) {
         return dslContext()
             .flatMap(queryFunction);
