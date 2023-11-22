@@ -22,9 +22,11 @@ package org.apache.james.domainlist.postgres;
 import static org.apache.james.domainlist.postgres.PostgresDomainModule.PostgresDomainTable.DOMAIN;
 
 import java.util.List;
+import java.util.Optional;
 
 import javax.inject.Inject;
 
+import org.apache.james.backends.postgres.utils.JamesPostgresConnectionFactory;
 import org.apache.james.backends.postgres.utils.PostgresExecutor;
 import org.apache.james.core.Domain;
 import org.apache.james.dnsservice.api.DNSService;
@@ -39,9 +41,9 @@ public class PostgresDomainList extends AbstractDomainList {
     private final PostgresExecutor postgresExecutor;
 
     @Inject
-    public PostgresDomainList(DNSService dnsService, PostgresExecutor postgresExecutor) {
+    public PostgresDomainList(DNSService dnsService, JamesPostgresConnectionFactory postgresConnectionFactory) {
         super(dnsService);
-        this.postgresExecutor = postgresExecutor;
+        this.postgresExecutor = new PostgresExecutor(postgresConnectionFactory.getConnection(Optional.empty()));;
     }
 
     @Override

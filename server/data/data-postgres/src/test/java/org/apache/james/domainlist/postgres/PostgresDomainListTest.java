@@ -20,13 +20,15 @@
 package org.apache.james.domainlist.postgres;
 
 import org.apache.james.backends.postgres.PostgresExtension;
+import org.apache.james.backends.postgres.utils.SinglePostgresConnectionFactory;
 import org.apache.james.domainlist.api.DomainList;
 import org.apache.james.domainlist.lib.DomainListConfiguration;
 import org.apache.james.domainlist.lib.DomainListContract;
-import org.apache.james.domainlist.postgres.PostgresDomainList;
-import org.apache.james.domainlist.postgres.PostgresDomainModule;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.RegisterExtension;
+
+import io.r2dbc.spi.Connection;
+import reactor.core.publisher.Mono;
 
 public class PostgresDomainListTest implements DomainListContract {
     @RegisterExtension
@@ -36,7 +38,8 @@ public class PostgresDomainListTest implements DomainListContract {
 
     @BeforeEach
     public void setup() throws Exception {
-        domainList = new PostgresDomainList(getDNSServer("localhost"), postgresExtension.getPostgresExecutor());
+        Connection connection = Mono.from(postgresExtension.getConnectionFactory().create()).block();
+        domainList = new PostgresDomainList(getDNSServer("localhost"), new SinglePostgresConnectionFactory(connection));
         domainList.configure(DomainListConfiguration.builder()
             .autoDetect(false)
             .autoDetectIp(false)
