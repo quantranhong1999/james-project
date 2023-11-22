@@ -56,7 +56,7 @@ public class PostgresDomainList extends AbstractDomainList {
     }
 
     @Override
-    protected List<Domain> getDomainListInternal() throws DomainListException {
+    protected List<Domain> getDomainListInternal() {
         return postgresExecutor.executeRows(dsl -> Flux.from(dsl.selectFrom(PostgresDomainModule.PostgresDomainTable.TABLE_NAME)))
             .map(record -> Domain.of(record.get(DOMAIN)))
             .collectList()
@@ -64,7 +64,7 @@ public class PostgresDomainList extends AbstractDomainList {
     }
 
     @Override
-    protected boolean containsDomainInternal(Domain domain) throws DomainListException {
+    protected boolean containsDomainInternal(Domain domain) {
         return postgresExecutor.executeRow(dsl -> Mono.from(dsl.selectFrom(PostgresDomainModule.PostgresDomainTable.TABLE_NAME)
             .where(DOMAIN.eq(domain.asString()))))
             .blockOptional()
@@ -80,7 +80,7 @@ public class PostgresDomainList extends AbstractDomainList {
             .isPresent();
 
         if (!executed) {
-            throw new DomainListException(domain.name() + " already exists.");
+            throw new DomainListException(domain.name() + " was not found");
         }
     }
 }
