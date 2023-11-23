@@ -25,7 +25,6 @@ import javax.inject.Inject;
 
 import org.apache.james.backends.postgres.utils.JamesPostgresConnectionFactory;
 import org.apache.james.backends.postgres.utils.PostgresExecutor;
-import org.apache.james.lifecycle.api.Startable;
 import org.jooq.exception.DataAccessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +35,7 @@ import io.r2dbc.spi.Result;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-public class PostgresTableManager implements Startable {
+public class PostgresTableManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(PostgresTableManager.class);
     private final PostgresExecutor postgresExecutor;
     private final PostgresModule module;
@@ -69,10 +68,13 @@ public class PostgresTableManager implements Startable {
     public Mono<Void> initializeTables() {
         return postgresExecutor.dslContext()
             .flatMap(dsl -> Flux.fromIterable(module.tables())
-                .flatMap(table -> Mono.from(table.getCreateTableStepFunction().apply(dsl))
-                    .then(alterTableIfNeeded(table))
-                    .doOnSuccess(any -> LOGGER.info("Table {} created", table.getName()))
-                    .onErrorResume(exception -> handleTableCreationException(table, exception)))
+                .flatMap(table -> {
+                    System.out.println("Creating table " + table.getName());
+                    return Mono.from(table.getCreateTableStepFunction().apply(dsl))
+                        .then(alterTableIfNeeded(table))
+                        .doOnSuccess(any -> LOGGER.info("Table {} created", table.getName()))
+                        .onErrorResume(exception -> handleTableCreationException(table, exception));
+                })
                 .then());
     }
 

@@ -34,6 +34,8 @@ import org.apache.james.domainlist.api.DomainListException;
 import org.apache.james.domainlist.lib.AbstractDomainList;
 import org.jooq.exception.DataAccessException;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -41,9 +43,15 @@ public class PostgresDomainList extends AbstractDomainList {
     private final PostgresExecutor postgresExecutor;
 
     @Inject
+    public PostgresDomainList(DNSService dnsService, PostgresExecutor.Factory postgresExecutorFactory) {
+        super(dnsService);
+        this.postgresExecutor = postgresExecutorFactory.create(Optional.empty());
+    }
+
+    @VisibleForTesting
     public PostgresDomainList(DNSService dnsService, JamesPostgresConnectionFactory postgresConnectionFactory) {
         super(dnsService);
-        this.postgresExecutor = new PostgresExecutor(postgresConnectionFactory.getConnection(Optional.empty()));;
+        this.postgresExecutor = new PostgresExecutor(postgresConnectionFactory.getConnection(Optional.empty()));
     }
 
     @Override

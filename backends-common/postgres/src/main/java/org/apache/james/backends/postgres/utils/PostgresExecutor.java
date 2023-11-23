@@ -19,12 +19,12 @@
 
 package org.apache.james.backends.postgres.utils;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
 
 import javax.inject.Inject;
 
+import org.apache.james.backends.postgres.PostgresTableManager;
 import org.apache.james.core.Domain;
 import org.jooq.DSLContext;
 import org.jooq.Record;
@@ -46,8 +46,14 @@ public class PostgresExecutor {
         private final JamesPostgresConnectionFactory jamesPostgresConnectionFactory;
 
         @Inject
-        public Factory(JamesPostgresConnectionFactory jamesPostgresConnectionFactory) {
+        public Factory(JamesPostgresConnectionFactory jamesPostgresConnectionFactory, PostgresTableManager postgresTableManager) {
             this.jamesPostgresConnectionFactory = jamesPostgresConnectionFactory;
+
+            // Not sure put it here is good idea. Maybe write a SessionWithInitializedTablesFactory class to both create table and provide the PostgresExecutor.Factory bean?
+            postgresTableManager.initializePostgresExtension()
+                .then(postgresTableManager.initializeTables())
+                .then(postgresTableManager.initializeTableIndexes())
+                .block();
         }
 
         public PostgresExecutor create(Optional<Domain> domain) {

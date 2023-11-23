@@ -29,8 +29,6 @@ import org.apache.james.backends.postgres.utils.DomainImplPostgresConnectionFact
 import org.apache.james.backends.postgres.utils.JamesPostgresConnectionFactory;
 import org.apache.james.backends.postgres.utils.PostgresExecutor;
 import org.apache.james.backends.postgres.utils.SinglePostgresConnectionFactory;
-import org.apache.james.utils.InitializationOperation;
-import org.apache.james.utils.InitilizationOperationBuilder;
 import org.apache.james.utils.PropertiesProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +38,6 @@ import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import com.google.inject.Singleton;
 import com.google.inject.multibindings.Multibinder;
-import com.google.inject.multibindings.ProvidesIntoSet;
 
 import io.r2dbc.postgresql.PostgresqlConnectionConfiguration;
 import io.r2dbc.postgresql.PostgresqlConnectionFactory;
@@ -99,15 +96,5 @@ public class PostgresCommonModule extends AbstractModule {
                                               PostgresModule postgresModule,
                                               PostgresConfiguration postgresConfiguration) {
         return new PostgresTableManager(jamesPostgresConnectionFactory, postgresModule, postgresConfiguration);
-    }
-
-    @ProvidesIntoSet
-    InitializationOperation provisionPostgresTablesAndIndexes(PostgresTableManager postgresTableManager) {
-        return InitilizationOperationBuilder
-            .forClass(PostgresTableManager.class)
-            .init(() -> postgresTableManager.initializePostgresExtension()
-                .then(postgresTableManager.initializeTables())
-                .then(postgresTableManager.initializeTableIndexes())
-                .block());
     }
 }
