@@ -24,7 +24,19 @@
         <resetJUL>true</resetJUL>
     </contextListener>
 
-    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+    <appender name="LOG_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>./src/test/resources/log/james.log</file>
+
+        <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+            <fileNamePattern>./src/test/resources/log/james.%i.log.tar.gz</fileNamePattern>
+            <minIndex>1</minIndex>
+            <maxIndex>3</maxIndex>
+        </rollingPolicy>
+
+        <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+            <maxFileSize>100MB</maxFileSize>
+        </triggeringPolicy>
+
         <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
             <layout class="ch.qos.logback.contrib.json.classic.JsonLayout">
                 <timestampFormat>yyyy-MM-dd'T'HH:mm:ss.SSSX</timestampFormat>
@@ -38,10 +50,9 @@
                 </jsonFormatter>
             </layout>
         </encoder>
-        <immediateFlush>false</immediateFlush>
     </appender>
     <root level="WARN">
-        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="LOG_FILE" />
     </root>
 
     <logger name="org.apache.james" level="INFO" />
