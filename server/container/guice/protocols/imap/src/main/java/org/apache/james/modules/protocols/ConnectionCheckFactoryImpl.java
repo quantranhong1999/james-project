@@ -19,7 +19,6 @@
 
 package org.apache.james.modules.protocols;
 
-import java.util.Optional;
 import java.util.Set;
 
 import javax.inject.Inject;
@@ -43,8 +42,7 @@ public class ConnectionCheckFactoryImpl implements ConnectionCheckFactory {
 
     @Override
     public Set<ConnectionCheck> create(ImapConfiguration imapConfiguration) {
-        return Optional.ofNullable(imapConfiguration.getAdditionalConnectionChecks())
-            .orElse(ImmutableSet.of())
+        return imapConfiguration.getAdditionalConnectionChecks()
             .stream()
             .map(ClassName::new)
             .map(Throwing.function(loader::instantiate))

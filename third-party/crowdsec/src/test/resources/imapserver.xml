@@ -40,6 +40,7 @@ under the License.
         <idleTimeIntervalUnit>SECONDS</idleTimeIntervalUnit>
         <enableIdle>true</enableIdle>
         <plainAuthDisallowed>false</plainAuthDisallowed>
+        <additionalConnectionChecks>org.apache.james.CrowdsecImapConnectionCheck</additionalConnectionChecks>
     </imapserver>
     <imapserver enabled="true">
         <jmxName>imapserver-ssl</jmxName>
@@ -60,5 +61,6 @@ under the License.
         <idleTimeIntervalUnit>SECONDS</idleTimeIntervalUnit>
         <enableIdle>true</enableIdle>
         <plainAuthDisallowed>false</plainAuthDisallowed>
+        <additionalConnectionChecks>org.apache.james.CrowdsecImapConnectionCheck</additionalConnectionChecks>
     </imapserver>
 </imapservers>

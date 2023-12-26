@@ -23,8 +23,10 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.james.data.UsersRepositoryModuleChooser.Implementation.DEFAULT;
 import static org.apache.james.model.CrowdsecClientConfiguration.DEFAULT_API_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Durations.ONE_HUNDRED_MILLISECONDS;
 
+import java.io.EOFException;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.nio.file.Files;
@@ -37,6 +39,7 @@ import org.apache.commons.net.smtp.SMTPClient;
 import org.apache.james.model.CrowdsecClientConfiguration;
 import org.apache.james.model.CrowdsecDecision;
 import org.apache.james.model.CrowdsecHttpClient;
+import org.apache.james.modules.protocols.ImapGuiceProbe;
 import org.apache.james.modules.protocols.SmtpGuiceProbe;
 import org.apache.james.utils.DataProbeImpl;
 import org.apache.james.utils.TestIMAPClient;
@@ -131,6 +134,26 @@ class CrowdsecIntegrationTest {
     @AfterEach
     void teardown() {
         haProxyExtension.stop();
+    }
+
+    @Nested
+    class IMAP {
+        @Test
+        void ipShouldBeBannedByCrowdSecWhenFailingToImapLoginThreeTimes(GuiceJamesServer server) {
+            // GIVEN an IP failed to log in 3 consecutive times in a short period
+            IntStream.range(0, 3)
+                .forEach(any ->
+                    assertThatThrownBy(() -> testIMAPClient.connect("127.0.0.1", server.getProbe(ImapGuiceProbe.class).getImapPort())
+                        .login(BOB, BAD_PASSWORD))
+                        .isInstanceOf(IOException.class)
+                        .hasMessage("Login failed"));
+
+            // THEN connection from the IP would be blocked. CrowdSec takes time to processing the ban decision therefore the await below.
+            CALMLY_AWAIT.atMost(Durations.TEN_SECONDS)
+                .untilAsserted(() -> assertThatThrownBy(() -> testIMAPClient.connect("127.0.0.1", server.getProbe(ImapGuiceProbe.class).getImapPort()))
+                    .isInstanceOf(EOFException.class)
+                    .hasMessage("Connection closed without indication."));
+        }
     }
 
     @Nested
