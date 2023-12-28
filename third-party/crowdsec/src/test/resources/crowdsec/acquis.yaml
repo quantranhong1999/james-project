@@ -1,5 +1,4 @@
 source: file
-filename:
- - /var/log/james.log
+filename: /var/log/james.log
 labels:
  type: james
