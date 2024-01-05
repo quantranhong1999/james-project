@@ -41,16 +41,17 @@ under the License.
         <enableIdle>true</enableIdle>
         <plainAuthDisallowed>false</plainAuthDisallowed>
         <additionalConnectionChecks>org.apache.james.CrowdsecImapConnectionCheck</additionalConnectionChecks>
+<!--        <proxyRequired>true</proxyRequired>-->
     </imapserver>
     <imapserver enabled="true">
         <jmxName>imapserver-ssl</jmxName>
         <bind>0.0.0.0:0</bind>
         <connectionBacklog>200</connectionBacklog>
-        <tls socketTLS="false" startTLS="false">
+        <tls socketTLS="true" startTLS="false">
             <!-- To create a new keystore execute:
               keytool -genkey -alias james -keyalg RSA -keystore /path/to/james/conf/keystore
              -->
-            <keystore>file://conf/keystore</keystore>
+            <keystore>classpath://keystore</keystore>
             <secret>james72laBalle</secret>
             <provider>org.bouncycastle.jce.provider.BouncyCastleProvider</provider>
         </tls>
@@ -62,5 +63,6 @@ under the License.
         <enableIdle>true</enableIdle>
         <plainAuthDisallowed>false</plainAuthDisallowed>
         <additionalConnectionChecks>org.apache.james.CrowdsecImapConnectionCheck</additionalConnectionChecks>
+        <proxyRequired>true</proxyRequired>
     </imapserver>
 </imapservers>
