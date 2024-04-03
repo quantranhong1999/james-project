@@ -33,6 +33,8 @@ import org.apache.james.mailbox.model.UidValidity;
 import org.apache.james.mailbox.model.search.MailboxQuery;
 import org.apache.james.mailbox.postgres.mail.dao.PostgresMailboxDAO;
 import org.apache.james.mailbox.store.mail.MailboxMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.github.fge.lambdas.Throwing;
 
@@ -40,6 +42,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 public class PostgresMailboxMapper implements MailboxMapper {
+    private static final Logger LOGGER = LoggerFactory.getLogger(PostgresMailboxMapper.class);
+
     private final PostgresMailboxDAO postgresMailboxDAO;
 
     @Inject
@@ -76,7 +80,10 @@ public class PostgresMailboxMapper implements MailboxMapper {
 
     @Override
     public Flux<Mailbox> findMailboxWithPathLike(MailboxQuery.UserBound query) {
+        LOGGER.info("Start StoreMailboxManager.findMailboxWithPathLike");
+
         return postgresMailboxDAO.findMailboxWithPathLike(query)
+            .doOnNext(postgresMailbox -> LOGGER.info("found for user {} mailbox {}", query.getFixedUser(), postgresMailbox.getName()))
             .map(Function.identity());
     }
 
@@ -94,6 +101,7 @@ public class PostgresMailboxMapper implements MailboxMapper {
     @Override
     public Flux<Mailbox> findNonPersonalMailboxes(Username userName, MailboxACL.Right right) {
         return postgresMailboxDAO.findNonPersonalMailboxes(userName, right)
+            .doOnNext(postgresMailbox -> LOGGER.info("found for user {} mailbox {}", userName.asString(), postgresMailbox.getName()))
             .map(Function.identity());
     }
 

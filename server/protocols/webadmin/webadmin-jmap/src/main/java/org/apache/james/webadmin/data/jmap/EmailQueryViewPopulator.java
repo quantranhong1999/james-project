@@ -137,10 +137,18 @@ public class EmailQueryViewPopulator {
     }
 
     private Flux<MessageResult> listUserMailboxMessages(Progress progress, MailboxSession session) {
+        LOGGER.info("Start provisioning query view for user {}", session.getUser().asString());
+
         return listUsersMailboxes(session)
-            .flatMap(mailboxMetadata -> retrieveMailbox(session, mailboxMetadata), MAILBOX_CONCURRENCY)
-            .flatMap(Throwing.function(messageManager -> listAllMessages(messageManager, session)), MAILBOX_CONCURRENCY)
-            .onErrorResume(MailboxException.class, e -> {
+            .flatMap(mailboxMetadata -> {
+                LOGGER.info("Start get MessageManager for user {} mailbox {}", session.getUser().asString(), mailboxMetadata.getMailbox().getName());
+                return retrieveMailbox(session, mailboxMetadata);
+            }, MAILBOX_CONCURRENCY)
+            .flatMap(Throwing.function(messageManager -> {
+                LOGGER.info("Start list all messages of user {}", session.getUser().asString());
+                return listAllMessages(messageManager, session);
+            }), MAILBOX_CONCURRENCY)
+            .onErrorResume(Exception.class, e -> {
                 LOGGER.error("JMAP emailQuery view re-computation aborted for {} as we failed listing user mailboxes", session.getUser(), e);
                 progress.incrementFailedUserCount();
                 return Flux.empty();
@@ -159,9 +167,15 @@ public class EmailQueryViewPopulator {
 
             return new EmailQueryView.Entry(mailboxId, messageId, sentAt, receivedAt);
         })
-            .flatMap(entry -> emailQueryView.save(entry.getMailboxId(), entry.getSentAt(), entry.getReceivedAt(), entry.getMessageId()))
+            .flatMap(entry -> {
+                LOGGER.info("Storing email query view entry {} into Postgres DB", entry);
+                return emailQueryView.save(entry.getMailboxId(), entry.getSentAt(), entry.getReceivedAt(), entry.getMessageId());
+            })
             .thenReturn(Result.COMPLETED)
-            .doOnSuccess(any -> progress.incrementProcessedMessageCount())
+            .doOnSuccess(any -> {
+                LOGGER.info("+1 processed message count");
+                progress.incrementProcessedMessageCount();
+            })
             .onErrorResume(e -> {
                 LOGGER.error("JMAP emailQuery view re-computation aborted for {} - {} - {}",
                     messageResult.getMailboxId(),
@@ -182,7 +196,12 @@ public class EmailQueryViewPopulator {
     }
 
     private Flux<MailboxMetaData> listUsersMailboxes(MailboxSession session) {
-        return mailboxManager.search(MailboxQuery.privateMailboxesBuilder(session).build(), Minimal, session);
+        LOGGER.info("Start list mailboxes of user {}", session.getUser().asString());
+        return mailboxManager.search(MailboxQuery.privateMailboxesBuilder(session).build(), Minimal, session)
+            .timeout(Duration.ofSeconds(10))
+            .doOnNext(mailboxMetaData -> LOGGER.info("listed mailbox {} for user {}", mailboxMetaData.getMailbox(), session.getUser().asString()))
+            .doOnError(e -> LOGGER.error("Failed to list mailboxes of user {}", session.getUser().asString(), e))
+            .doOnComplete(() -> LOGGER.info("Finished listing mailbox of user {}", session.getUser().asString()));
     }
 
     private Mono<MessageManager> retrieveMailbox(MailboxSession session, MailboxMetaData mailboxMetadata) {

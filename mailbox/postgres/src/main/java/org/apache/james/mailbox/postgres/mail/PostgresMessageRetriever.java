@@ -41,6 +41,8 @@ import org.apache.james.mailbox.store.mail.model.MailboxMessage;
 import org.apache.james.mailbox.store.mail.model.impl.SimpleMailboxMessage;
 import org.apache.james.util.ReactorUtils;
 import org.jooq.Record;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.ImmutableMap;
 
@@ -48,6 +50,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 public class PostgresMessageRetriever {
+    private static final Logger LOGGER = LoggerFactory.getLogger(PostgresMessageRetriever.class);
 
     interface PartRetriever {
 
@@ -65,6 +68,7 @@ public class PostgresMessageRetriever {
 
         @Override
         public Flux<Pair<SimpleMailboxMessage.Builder, Record>> doRetrieve(Flux<Pair<SimpleMailboxMessage.Builder, Record>> chain) {
+            LOGGER.info("retrieving AttachmentPartRetriever");
             return chain.collectList()  // convert to list to avoid hanging the database connection with Jooq
                 .flatMapMany(list -> Flux.fromIterable(list)
                     .flatMapSequential(pair -> Mono.fromCallable(() -> toMap(pair.getRight().get(ATTACHMENT_METADATA)))
@@ -105,6 +109,7 @@ public class PostgresMessageRetriever {
 
         @Override
         public Flux<Pair<SimpleMailboxMessage.Builder, Record>> doRetrieve(Flux<Pair<SimpleMailboxMessage.Builder, Record>> chain) {
+            LOGGER.info("retrieving BlobContentPartRetriever");
             return chain
                 .flatMapSequential(pair -> retrieveFullContent(pair.getRight())
                     .map(headerAndBodyContent -> Pair.of(pair.getLeft().content(headerAndBodyContent), pair.getRight())),
@@ -134,7 +139,10 @@ public class PostgresMessageRetriever {
 
     public Flux<MailboxMessage> get(MessageMapper.FetchType fetchType, Flux<Pair<SimpleMailboxMessage.Builder, Record>> initialFlux) {
         return Flux.fromIterable(partRetrievers)
-            .filter(partRetriever -> partRetriever.isApplicable(fetchType))
+            .filter(partRetriever -> {
+                LOGGER.info("{} is {} applicable", partRetriever, partRetriever.isApplicable(fetchType));
+                return partRetriever.isApplicable(fetchType);
+            })
             .reduce(initialFlux, (flux, partRetriever) -> partRetriever.doRetrieve(flux))
             .flatMapMany(flux -> flux)
             .map(pair -> pair.getLeft().build());

@@ -756,10 +756,15 @@ public class StoreMailboxManager implements MailboxManager {
 
         return mailboxesMono
             .publishOn(Schedulers.parallel())
-            .flatMapMany(mailboxes -> Flux.fromIterable(mailboxes)
-                .filter(expression::matches)
-                .transform(metadataTransformation(fetchType, session, mailboxes)))
-            .sort(MailboxMetaData.COMPARATOR);
+            .flatMapMany(mailboxes -> {
+                LOGGER.info("Start search transformation for user {} mailboxes {}", session.getUser().asString(), mailboxes);
+
+                return Flux.fromIterable(mailboxes)
+                    .filter(expression::matches)
+                    .transform(metadataTransformation(fetchType, session, mailboxes));
+            })
+            .sort(MailboxMetaData.COMPARATOR)
+            .doOnComplete(() -> LOGGER.info("Finished searching + transform mailboxes for user {}", session.getUser().asString()));
     }
 
     private Function<Flux<Mailbox>, Flux<MailboxMetaData>> metadataTransformation(MailboxSearchFetchType fetchType, MailboxSession session, List<Mailbox> mailboxes) {
@@ -807,13 +812,16 @@ public class StoreMailboxManager implements MailboxManager {
     }
 
     private Flux<Mailbox> searchMailboxes(MailboxQuery mailboxQuery, MailboxSession session, Right right) {
+        LOGGER.info("Start StoreMailboxManager.searchMailboxes");
+
         MailboxMapper mailboxMapper = mailboxSessionMapperFactory.getMailboxMapper(session);
         Flux<Mailbox> baseMailboxes = mailboxMapper
             .findMailboxWithPathLike(toSingleUserQuery(mailboxQuery, session));
         Flux<Mailbox> delegatedMailboxes = getDelegatedMailboxes(mailboxMapper, mailboxQuery, right, session)
             .filter(Throwing.predicate(mailbox -> storeRightManager.hasRight(mailbox, right, session)))
             .filter(mailbox -> !mailbox.getUser().equals(session.getUser()));
-        return Flux.concat(baseMailboxes, delegatedMailboxes);
+        return Flux.concat(baseMailboxes, delegatedMailboxes)
+            .doOnComplete(() -> LOGGER.info("Finished searchMailboxes"));
     }
 
     private Flux<MailboxId> accessibleMailboxIds(MultimailboxesSearchQuery.Namespace namespace, Right right, MailboxSession session) {
@@ -836,6 +844,8 @@ public class StoreMailboxManager implements MailboxManager {
 
     private Flux<Mailbox> getDelegatedMailboxes(MailboxMapper mailboxMapper, MailboxQuery mailboxQuery,
                                                 Right right, MailboxSession session) {
+        LOGGER.info("Start StoreMailboxManager.getDelegatedMailboxes");
+
         if (mailboxQuery.isPrivateMailboxes(session)) {
             return Flux.empty();
         }
