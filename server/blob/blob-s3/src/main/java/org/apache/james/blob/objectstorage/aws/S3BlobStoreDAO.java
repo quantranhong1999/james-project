@@ -49,8 +49,10 @@ import org.apache.james.blob.api.BucketName;
 import org.apache.james.blob.api.ObjectNotFoundException;
 import org.apache.james.blob.api.ObjectStoreIOException;
 import org.apache.james.lifecycle.api.Startable;
+import org.apache.james.metrics.api.MetricFactory;
 import org.apache.james.util.ReactorUtils;
 import org.reactivestreams.Publisher;
+import org.slf4j.event.Level;
 
 import com.github.fge.lambdas.Throwing;
 import com.google.common.annotations.VisibleForTesting;
@@ -73,6 +75,7 @@ import software.amazon.awssdk.core.async.SdkPublisher;
 import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.http.TlsTrustManagersProvider;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
+import software.amazon.awssdk.metrics.LoggingMetricPublisher;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
 import software.amazon.awssdk.services.s3.S3Configuration;
 import software.amazon.awssdk.services.s3.model.Bucket;
@@ -145,7 +148,7 @@ public class S3BlobStoreDAO implements BlobStoreDAO, Startable, Closeable {
 
     @Inject
     @Singleton
-    S3BlobStoreDAO(S3BlobStoreConfiguration configuration, BlobId.Factory blobIdFactory) {
+    S3BlobStoreDAO(S3BlobStoreConfiguration configuration, BlobId.Factory blobIdFactory, MetricFactory metricFactory) {
         this.blobIdFactory = blobIdFactory;
         this.configuration = configuration;
         AwsS3AuthConfiguration authConfiguration = this.configuration.getSpecificAuthConfiguration();
@@ -161,6 +164,8 @@ public class S3BlobStoreDAO implements BlobStoreDAO, Startable, Closeable {
             .endpointOverride(authConfiguration.getEndpoint())
             .region(configuration.getRegion().asAws())
             .serviceConfiguration(pathStyleAccess)
+            .overrideConfiguration(builder -> builder.addMetricPublisher(LoggingMetricPublisher.create(Level.INFO, LoggingMetricPublisher.Format.PRETTY)) // todo remove the LoggingMetricPublisher after debug
+                .addMetricPublisher(new JamesS3MetricPublisher(metricFactory)))
             .build();
 
         bucketNameResolver = BucketNameResolver.builder()
