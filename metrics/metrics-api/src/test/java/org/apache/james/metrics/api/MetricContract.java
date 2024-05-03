@@ -111,6 +111,24 @@ public interface MetricContract {
     }
 
     @Test
+    default void setShouldSucceedWhenMetricAlreadyHasAValue() {
+        testee().add(-1);
+
+        testee().set(100);
+
+        assertThat(testee().getCount())
+            .isEqualTo(100);
+    }
+
+    @Test
+    default void setShouldSucceedWhenMetricHasNoValueYet() {
+        testee().set(100);
+
+        assertThat(testee().getCount())
+            .isEqualTo(100);
+    }
+
+    @Test
     default void removeShouldKeepCounterBeTheSameWhenZero() {
         testee().add(888);
         testee().remove(0);

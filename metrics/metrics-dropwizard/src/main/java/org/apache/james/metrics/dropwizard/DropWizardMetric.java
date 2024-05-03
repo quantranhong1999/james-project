@@ -58,6 +58,11 @@ public class DropWizardMetric implements Metric {
     }
 
     @Override
+    public void set(int newValue) {
+        meter.mark(- meter.getCount() + newValue);
+    }
+
+    @Override
     public long getCount() {
         long value = meter.getCount();
         if (value < 0) {

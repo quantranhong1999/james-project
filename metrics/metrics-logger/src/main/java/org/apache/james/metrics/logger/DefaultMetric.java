@@ -57,6 +57,11 @@ public class DefaultMetric implements Metric {
     }
 
     @Override
+    public void set(int newValue) {
+        value.set(newValue);
+    }
+
+    @Override
     public long getCount() {
         long counter = value.longValue();
         if (counter < 0) {
