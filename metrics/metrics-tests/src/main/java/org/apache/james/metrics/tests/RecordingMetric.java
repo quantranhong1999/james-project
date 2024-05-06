@@ -55,11 +55,6 @@ public class RecordingMetric implements Metric {
     }
 
     @Override
-    public void set(int newValue) {
-        value.set(newValue);
-    }
-
-    @Override
     public long getCount() {
         return value.longValue();
     }

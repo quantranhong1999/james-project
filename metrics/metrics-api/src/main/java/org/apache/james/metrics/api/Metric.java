@@ -29,8 +29,6 @@ public interface Metric {
 
     void remove(int value);
 
-    void set(int newValue);
-
     /**
      * @return A long guaranteed to be positive.
      *
