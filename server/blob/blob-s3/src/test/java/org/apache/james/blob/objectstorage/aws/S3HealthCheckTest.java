@@ -25,6 +25,7 @@ import org.apache.james.blob.api.BlobStoreDAO;
 import org.apache.james.blob.api.ObjectStorageHealthCheck;
 import org.apache.james.blob.api.TestBlobId;
 import org.apache.james.core.healthcheck.Result;
+import org.apache.james.metrics.api.NoopGaugeRegistry;
 import org.apache.james.metrics.tests.RecordingMetricFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,7 +50,7 @@ public class S3HealthCheckTest {
             .region(dockerAwsS3.dockerAwsS3().region())
             .build();
 
-        BlobStoreDAO s3BlobStoreDAO = new S3BlobStoreDAO(s3Configuration, new TestBlobId.Factory(), new RecordingMetricFactory());
+        BlobStoreDAO s3BlobStoreDAO = new S3BlobStoreDAO(s3Configuration, new TestBlobId.Factory(), new RecordingMetricFactory(), new NoopGaugeRegistry());
         s3HealthCheck = new ObjectStorageHealthCheck(s3BlobStoreDAO);
     }
 

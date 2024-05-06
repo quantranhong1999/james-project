@@ -49,6 +49,7 @@ import org.apache.james.blob.api.BucketName;
 import org.apache.james.blob.api.ObjectNotFoundException;
 import org.apache.james.blob.api.ObjectStoreIOException;
 import org.apache.james.lifecycle.api.Startable;
+import org.apache.james.metrics.api.GaugeRegistry;
 import org.apache.james.metrics.api.MetricFactory;
 import org.apache.james.util.ReactorUtils;
 import org.reactivestreams.Publisher;
@@ -146,7 +147,7 @@ public class S3BlobStoreDAO implements BlobStoreDAO, Startable, Closeable {
 
     @Inject
     @Singleton
-    S3BlobStoreDAO(S3BlobStoreConfiguration configuration, BlobId.Factory blobIdFactory, MetricFactory metricFactory) {
+    S3BlobStoreDAO(S3BlobStoreConfiguration configuration, BlobId.Factory blobIdFactory, MetricFactory metricFactory, GaugeRegistry gaugeRegistry) {
         this.blobIdFactory = blobIdFactory;
         this.configuration = configuration;
         AwsS3AuthConfiguration authConfiguration = this.configuration.getSpecificAuthConfiguration();
@@ -162,7 +163,7 @@ public class S3BlobStoreDAO implements BlobStoreDAO, Startable, Closeable {
             .endpointOverride(authConfiguration.getEndpoint())
             .region(configuration.getRegion().asAws())
             .serviceConfiguration(pathStyleAccess)
-            .overrideConfiguration(builder -> builder.addMetricPublisher(new JamesS3MetricPublisher(metricFactory)))
+            .overrideConfiguration(builder -> builder.addMetricPublisher(new JamesS3MetricPublisher(metricFactory, gaugeRegistry)))
             .build();
 
         bucketNameResolver = BucketNameResolver.builder()

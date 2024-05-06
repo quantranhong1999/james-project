@@ -23,12 +23,11 @@ import static software.amazon.awssdk.core.metrics.CoreMetric.API_CALL_DURATION;
 import static software.amazon.awssdk.http.HttpMetric.AVAILABLE_CONCURRENCY;
 import static software.amazon.awssdk.http.HttpMetric.CONCURRENCY_ACQUIRE_DURATION;
 import static software.amazon.awssdk.http.HttpMetric.LEASED_CONCURRENCY;
-import static software.amazon.awssdk.http.HttpMetric.MAX_CONCURRENCY;
 import static software.amazon.awssdk.http.HttpMetric.PENDING_CONCURRENCY_ACQUIRES;
 
 import java.time.Duration;
 
-import org.apache.james.metrics.api.Metric;
+import org.apache.james.metrics.api.GaugeRegistry;
 import org.apache.james.metrics.api.MetricFactory;
 import org.apache.james.metrics.api.TimeMetric;
 
@@ -36,18 +35,16 @@ import software.amazon.awssdk.metrics.MetricCollection;
 import software.amazon.awssdk.metrics.MetricPublisher;
 
 public class JamesS3MetricPublisher implements MetricPublisher {
-    private final Metric maxConcurrency; // The max number of concurrent requests supported by the HTTP client.
-    private final Metric availableConcurrency; // The number of remaining concurrent requests that can be supported by the HTTP client without needing to establish another connection.
-    private final Metric leasedConcurrency; // The number of request currently being executed by the HTTP client.
-    private final Metric pendingConcurrencyAcquires; // The number of requests that are blocked, waiting for another TCP connection or a new stream to be available from the connection pool.
+    private final GaugeRegistry.SettableGauge<Integer> availableConcurrency; // The number of remaining concurrent requests that can be supported by the HTTP client without needing to establish another connection.
+    private final GaugeRegistry.SettableGauge<Integer> leasedConcurrency; // The number of request currently being executed by the HTTP client.
+    private final GaugeRegistry.SettableGauge<Integer> pendingConcurrencyAcquires; // The number of requests that are blocked, waiting for another TCP connection or a new stream to be available from the connection pool.
     private final TimeMetric concurrencyAcquireDuration; // The time taken to acquire a channel from the connection pool.
     private final TimeMetric apiCallDuration; // The total time taken to finish a request (inclusive of all retries).
 
-    public JamesS3MetricPublisher(MetricFactory metricFactory) {
-        this.maxConcurrency = metricFactory.generate("s3_httpClient_maxConcurrency");
-        this.availableConcurrency = metricFactory.generate("s3_httpClient_availableConcurrency");
-        this.leasedConcurrency = metricFactory.generate("s3_httpClient_leasedConcurrency");
-        this.pendingConcurrencyAcquires = metricFactory.generate("s3_httpClient_pendingConcurrencyAcquires");
+    public JamesS3MetricPublisher(MetricFactory metricFactory, GaugeRegistry gaugeRegistry) {
+        this.availableConcurrency = gaugeRegistry.settableGauge("s3_httpClient_availableConcurrency");
+        this.leasedConcurrency = gaugeRegistry.settableGauge("s3_httpClient_leasedConcurrency");
+        this.pendingConcurrencyAcquires = gaugeRegistry.settableGauge("s3_httpClient_pendingConcurrencyAcquires");
         this.concurrencyAcquireDuration = metricFactory.timer("s3_httpClient_concurrencyAcquireDuration");
         this.apiCallDuration = metricFactory.timer("s3_apiCall_apiCallDuration");
     }
@@ -60,17 +57,14 @@ public class JamesS3MetricPublisher implements MetricPublisher {
     private void extractS3ClientMetrics(MetricCollection s3ClientMetrics) {
         // Extract useful metrics from https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/metrics-list.html
         s3ClientMetrics.stream().forEach(metricRecord -> {
-            if (metricRecord.metric().equals(MAX_CONCURRENCY)) {
-                maxConcurrency.set((Integer) metricRecord.value());
-            }
             if (metricRecord.metric().equals(AVAILABLE_CONCURRENCY)) {
-                availableConcurrency.set((Integer) metricRecord.value());
+                availableConcurrency.setValue((Integer) metricRecord.value());
             }
             if (metricRecord.metric().equals(LEASED_CONCURRENCY)) {
-                leasedConcurrency.set((Integer) metricRecord.value());
+                leasedConcurrency.setValue((Integer) metricRecord.value());
             }
             if (metricRecord.metric().equals(PENDING_CONCURRENCY_ACQUIRES)) {
-                pendingConcurrencyAcquires.set((Integer) metricRecord.value());
+                pendingConcurrencyAcquires.setValue((Integer) metricRecord.value());
             }
             if (metricRecord.metric().equals(CONCURRENCY_ACQUIRE_DURATION)) {
                 concurrencyAcquireDuration.record((Duration) metricRecord.value());
@@ -78,9 +72,9 @@ public class JamesS3MetricPublisher implements MetricPublisher {
             if (metricRecord.metric().equals(API_CALL_DURATION)) {
                 apiCallDuration.record((Duration) metricRecord.value());
             }
-
-            s3ClientMetrics.children().forEach(this::extractS3ClientMetrics);
         });
+
+        s3ClientMetrics.children().forEach(this::extractS3ClientMetrics);
     }
 
     @Override

@@ -23,6 +23,7 @@ import org.apache.james.blob.api.BlobId;
 import org.apache.james.blob.api.BlobStore;
 import org.apache.james.blob.api.BlobStoreContract;
 import org.apache.james.blob.api.HashBlobId;
+import org.apache.james.metrics.api.NoopGaugeRegistry;
 import org.apache.james.metrics.tests.RecordingMetricFactory;
 import org.apache.james.server.blob.deduplication.BlobStoreFactory;
 import org.junit.jupiter.api.AfterAll;
@@ -50,7 +51,7 @@ class S3PassThroughBlobStoreTest implements BlobStoreContract {
             .build();
 
         HashBlobId.Factory blobIdFactory = new HashBlobId.Factory();
-        s3BlobStoreDAO = new S3BlobStoreDAO(s3Configuration, blobIdFactory, new RecordingMetricFactory());
+        s3BlobStoreDAO = new S3BlobStoreDAO(s3Configuration, blobIdFactory, new RecordingMetricFactory(), new NoopGaugeRegistry());
 
         testee = BlobStoreFactory.builder()
             .blobStoreDAO(s3BlobStoreDAO)
