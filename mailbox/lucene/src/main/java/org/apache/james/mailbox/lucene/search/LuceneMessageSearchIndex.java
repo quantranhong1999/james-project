@@ -24,6 +24,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
@@ -526,10 +527,12 @@ public class LuceneMessageSearchIndex extends ListeningMessageSearchIndex {
             }
 
             // query for all the documents sorted as specified in the SearchQuery
+            System.out.println("Query final : " + query.toString());
             TopDocs docs = searcher.search(query, null, maxQueryResults, createSort(searchQuery.getSorts()));
             ScoreDoc[] sDocs = docs.scoreDocs;
             for (ScoreDoc sDoc : sDocs) {
                 Document doc = searcher.doc(sDoc.doc);
+//                System.out.println("Explaination final: " + searcher.explain(query, sDoc.doc));
                 MessageUid uid = MessageUid.of(doc.getField(UID_FIELD).numericValue().longValue());
                 MailboxId mailboxId = mailboxIdFactory.fromString(doc.get(MAILBOX_ID_FIELD));
                 Optional<MessageId> messageId = toMessageId(Optional.ofNullable(doc.get(MESSAGE_ID_FIELD)));
@@ -982,7 +985,8 @@ public class LuceneMessageSearchIndex extends ListeningMessageSearchIndex {
      */
     private Query createFlagQuery(String flag, boolean isSet, Query inMailboxes, Collection<MessageUid> recentUids) throws MailboxException {
         BooleanQuery query = new BooleanQuery();
-        
+        BooleanQuery testQuery = new BooleanQuery();
+
         if (isSet) {   
             query.add(new TermQuery(new Term(FLAGS_FIELD, flag)), BooleanClause.Occur.MUST);
         } else {
@@ -994,6 +998,7 @@ public class LuceneMessageSearchIndex extends ListeningMessageSearchIndex {
             query.add(bQuery, BooleanClause.Occur.MUST);
         }
         query.add(inMailboxes, BooleanClause.Occur.MUST);
+        testQuery.add(inMailboxes, BooleanClause.Occur.MUST);
 
 
         try (IndexReader reader = DirectoryReader.open(writer, true)) {
@@ -1002,11 +1007,25 @@ public class LuceneMessageSearchIndex extends ListeningMessageSearchIndex {
 
             // query for all the documents sorted by uid
             TopDocs docs = searcher.search(query, null, maxQueryResults, new Sort(UID_SORT));
+            System.out.println("Query createFlagQuery : " + query.toString());
             ScoreDoc[] sDocs = docs.scoreDocs;
             for (ScoreDoc sDoc : sDocs) {
                 MessageUid uid = MessageUid.of(searcher.doc(sDoc.doc).getField(UID_FIELD).numericValue().longValue());
                 uids.add(uid);
+                System.out.println("Query message " + uid + " flags: " + Arrays.toString(searcher.doc(sDoc.doc).getValues(FLAGS_FIELD)));
+//                System.out.println("Explaination createFlagQuery: " + searcher.explain(query, sDoc.doc));
             }
+
+            // query for all the documents sorted by uid
+            System.out.println("Test query createFlagQuery : " + testQuery.toString());
+            TopDocs docs1 = searcher.search(testQuery, null, maxQueryResults, new Sort(UID_SORT));
+            ScoreDoc[] sDocss = docs1.scoreDocs;
+            for (ScoreDoc sDoc : sDocss) {
+                MessageUid uid = MessageUid.of(searcher.doc(sDoc.doc).getField(UID_FIELD).numericValue().longValue());
+                System.out.println("Test query message " + uid + " flags: " + Arrays.toString(searcher.doc(sDoc.doc).getValues(FLAGS_FIELD)));
+//                System.out.println("Explaination createFlagQuery: " + searcher.explain(query, sDoc.doc));
+            }
+            System.out.println("Finished test query");
             
             // add or remove recent uids
             if (flag.equalsIgnoreCase("\\RECENT")) {
