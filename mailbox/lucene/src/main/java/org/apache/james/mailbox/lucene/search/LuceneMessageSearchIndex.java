@@ -450,6 +450,7 @@ public class LuceneMessageSearchIndex extends ListeningMessageSearchIndex {
         } else {
             config.setOpenMode(OpenMode.CREATE_OR_APPEND);
         }
+        config.setCheckPendingFlushUpdate(true);
         return config;
     }
     
@@ -505,7 +506,7 @@ public class LuceneMessageSearchIndex extends ListeningMessageSearchIndex {
 
         Query inMailboxes = buildQueryFromMailboxes(mailboxIds);
 
-        try (IndexReader reader = DirectoryReader.open(writer)) {
+        try (IndexReader reader = DirectoryReader.open(writer, true, true)) {
             IndexSearcher searcher = new IndexSearcher(reader);
             BooleanQuery.Builder queryBuilder = new BooleanQuery.Builder();
             queryBuilder.add(inMailboxes, BooleanClause.Occur.MUST);
@@ -996,7 +997,7 @@ public class LuceneMessageSearchIndex extends ListeningMessageSearchIndex {
         queryBuilder.add(inMailboxes, BooleanClause.Occur.MUST);
 
 
-        try (IndexReader reader = DirectoryReader.open(writer)) {
+        try (IndexReader reader = DirectoryReader.open(writer, true, true)) {
             IndexSearcher searcher = new IndexSearcher(reader);
             Set<MessageUid> uids = new HashSet<>();
 
@@ -1244,6 +1245,8 @@ public class LuceneMessageSearchIndex extends ListeningMessageSearchIndex {
 
             writer.addDocument(doc);
             writer.addDocument(flagsDoc);
+            System.out.println("added flagsdoc: " + flagsDoc);
+            writer.commit();
         }));
     }
 
@@ -1257,7 +1260,7 @@ public class LuceneMessageSearchIndex extends ListeningMessageSearchIndex {
     }
 
     private void update(MailboxId mailboxId, MessageUid uid, Flags f) throws IOException {
-        try (IndexReader reader = DirectoryReader.open(writer)) {
+        try (IndexReader reader = DirectoryReader.open(writer, true, true)) {
             IndexSearcher searcher = new IndexSearcher(reader);
             BooleanQuery.Builder queryBuilder = new BooleanQuery.Builder();
             queryBuilder.add(new TermQuery(new Term(MAILBOX_ID_FIELD, mailboxId.serialize())), BooleanClause.Occur.MUST);
@@ -1279,7 +1282,9 @@ public class LuceneMessageSearchIndex extends ListeningMessageSearchIndex {
                 doc.add(new LongPoint(UID_FIELD, uidValue));
                 doc.add(new StoredField(UID_FIELD, uidValue));
 
-                writer.updateDocument(new Term(ID_FIELD, doc.get(ID_FIELD)), doc);
+                System.out.println("update flag with sequence number: " + writer.updateDocument(new Term(ID_FIELD, doc.get(ID_FIELD)), doc));
+                System.out.println("writer has uncommited change?: " + writer.hasUncommittedChanges());
+                System.out.println("writer commit sequence number: " + writer.commit());
             }
         }
     }
@@ -1304,10 +1309,8 @@ public class LuceneMessageSearchIndex extends ListeningMessageSearchIndex {
      * Add the given {@link Flags} to the {@link Document}
      */
     private void indexFlags(Document doc, Flags f) {
-        List<String> fString = new ArrayList<>();
         Flag[] flags = f.getSystemFlags();
         for (Flag flag : flags) {
-            fString.add(toString(flag));
             doc.add(new StringField(FLAGS_FIELD, toString(flag), Store.YES));
         }
         
@@ -1368,7 +1371,7 @@ public class LuceneMessageSearchIndex extends ListeningMessageSearchIndex {
     }
 
     private Flags retrieveFlags(Mailbox mailbox, MessageUid uid) throws IOException {
-        try (IndexReader reader = DirectoryReader.open(writer)) {
+        try (IndexReader reader = DirectoryReader.open(writer, true, true)) {
             IndexSearcher searcher = new IndexSearcher(reader);
             Flags retrievedFlags = new Flags();
 
