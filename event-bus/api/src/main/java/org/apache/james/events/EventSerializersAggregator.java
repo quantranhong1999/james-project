@@ -69,7 +69,7 @@ public class EventSerializersAggregator implements EventSerializer {
             .map(eventSerializer -> deserializeEvents(serialized, eventSerializer))
             .flatMap(Optional::stream)
             .findFirst()
-            .orElseThrow(() -> new RuntimeException("Could not deserialize event: " + serialized));
+            .orElseThrow(() -> new RuntimeException("Could not deserialize events: " + serialized));
     }
 
     private Optional<String> serialize(Event event, EventSerializer eventSerializer) {
