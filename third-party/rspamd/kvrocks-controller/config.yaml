@@ -1,0 +1,12 @@
+# Listen on all interfaces so other containers can reach it
+addr: "0.0.0.0:9379"
+
+storage_type: etcd
+etcd:
+  addrs:
+    - "etcd:2379"
+
+controller:
+  failover:
+    ping_interval_seconds: 3
+    min_alive_size: 5

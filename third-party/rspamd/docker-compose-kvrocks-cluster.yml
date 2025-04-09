@@ -1,0 +1,107 @@
+version: "3.8"
+
+networks:
+  kvnet:
+    driver: bridge
+
+services:
+  # ETCD acts as a database for Kvrocks Controller
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.5
+    container_name: etcd
+    command:
+      - etcd
+      - --advertise-client-urls=http://0.0.0.0:2379
+      - --listen-client-urls=http://0.0.0.0:2379
+    expose:
+      - "2379"
+    networks:
+      - kvnet
+
+  controller:
+    image: apache/kvrocks-controller:1.1.0
+    container_name: kvrocks-controller
+    depends_on:
+      - etcd
+    expose:
+      - "9379"
+    volumes:
+      - ./kvrocks-controller/config.yaml:/var/lib/kvctl/config.yaml
+    networks:
+      - kvnet
+
+  # --- Masters ---
+  kvrocks-master-1:
+    image: apache/kvrocks:2.11.1
+    container_name: kvrocks-master-1
+    expose:
+      - "6666"
+    volumes:
+      - ./kvrocks/kvrocks.conf:/var/lib/kvrocks/kvrocks.conf
+      - kv-master-1-data:/var/lib/kvrocks
+    networks:
+      - kvnet
+
+  kvrocks-master-2:
+    image: apache/kvrocks:2.11.1
+    container_name: kvrocks-master-2
+    expose:
+      - "6666"
+    volumes:
+      - ./kvrocks/kvrocks.conf:/var/lib/kvrocks/kvrocks.conf
+      - kv-master-2-data:/var/lib/kvrocks
+    networks:
+      - kvnet
+
+  kvrocks-master-3:
+    image: apache/kvrocks:2.11.1
+    container_name: kvrocks-master-3
+    expose:
+      - "6666"
+    volumes:
+      - ./kvrocks/kvrocks.conf:/var/lib/kvrocks/kvrocks.conf
+      - kv-master-3-data:/var/lib/kvrocks
+    networks:
+      - kvnet
+
+  # --- Replicas ---
+  kvrocks-replica-1:
+    image: apache/kvrocks:2.11.1
+    container_name: kvrocks-replica-1
+    expose:
+      - "6666"
+    volumes:
+      - ./kvrocks/kvrocks.conf:/var/lib/kvrocks/kvrocks.conf
+      - kv-replica-1-data:/var/lib/kvrocks
+    networks:
+      - kvnet
+
+  kvrocks-replica-2:
+    image: apache/kvrocks:2.11.1
+    container_name: kvrocks-replica-2
+    expose:
+      - "6666"
+    volumes:
+      - ./kvrocks/kvrocks.conf:/var/lib/kvrocks/kvrocks.conf
+      - kv-replica-2-data:/var/lib/kvrocks
+    networks:
+      - kvnet
+
+  kvrocks-replica-3:
+    image: apache/kvrocks:2.11.1
+    container_name: kvrocks-replica-3
+    expose:
+      - "6666"
+    volumes:
+      - ./kvrocks/kvrocks.conf:/var/lib/kvrocks/kvrocks.conf
+      - kv-replica-3-data:/var/lib/kvrocks
+    networks:
+      - kvnet
+
+volumes:
+  kv-master-1-data:
+  kv-master-2-data:
+  kv-master-3-data:
+  kv-replica-1-data:
+  kv-replica-2-data:
+  kv-replica-3-data:
