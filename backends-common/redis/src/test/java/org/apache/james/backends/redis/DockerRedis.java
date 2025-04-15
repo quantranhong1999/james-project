@@ -23,6 +23,7 @@ import static java.lang.Boolean.TRUE;
 
 import java.net.URI;
 import java.time.Duration;
+import java.util.List;
 import java.util.UUID;
 
 import org.apache.http.client.utils.URIBuilder;
@@ -52,13 +53,19 @@ public class DockerRedis {
     }
 
     private GenericContainer<?> getContainer() {
-        return new GenericContainer<>(DEFAULT_IMAGE_NAME)
+        var redisContainer = new GenericContainer<>(DEFAULT_IMAGE_NAME)
             .withExposedPorts(DEFAULT_PORT)
             .withCreateContainerCmdModifier(createContainerCmd -> createContainerCmd.withName("james-redis-test-" + UUID.randomUUID()))
             .withCommand("--loglevel", "debug")
             .withNetworkAliases("redis")
             .waitingFor(Wait.forLogMessage(".*Ready to accept connections.*", 1)
                 .withStartupTimeout(Duration.ofMinutes(2)));
+
+        // Expose statically to port 6379 on host machine. Otherwise, after test container restart, the exposed port on host changed
+        // and Lettuce client is of course not aware of the new port.
+        redisContainer.setPortBindings(List.of(String.format("%d:%d", DEFAULT_PORT, DEFAULT_PORT)));
+
+        return redisContainer;
     }
 
     public URI redisURI() {
