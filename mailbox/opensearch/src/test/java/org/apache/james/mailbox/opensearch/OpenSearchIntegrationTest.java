@@ -535,6 +535,25 @@ class OpenSearchIntegrationTest extends AbstractMessageSearchIndexTest {
             .containsOnly(messageId2.getUid());
     }
 
+    @Test
+    void attachmentFilenameWithSpaceShouldBeSearchable() throws Exception {
+        MailboxPath mailboxPath = MailboxPath.forUser(USERNAME, INBOX);
+        MailboxSession session = MailboxSessionUtil.create(USERNAME);
+        MessageManager messageManager = storeMailboxManager.getMailbox(mailboxPath, session);
+
+        // mail with attachment filename `big bad wolf.txt`
+        ComposedMessageId messageId = messageManager.appendMessage(
+            MessageManager.AppendCommand.builder()
+                .build(ClassLoaderUtils.getSystemResourceAsSharedStream("eml/attachments-filename-with-space.eml")),
+            session).getId();
+
+        awaitForOpenSearch(QueryBuilders.matchAll().build().toQuery(), 14);
+        Thread.sleep(500);
+
+        assertThat(Flux.from(messageManager.search(SearchQuery.of(SearchQuery.attachmentFileName("wolf")), session)).toStream())
+            .containsOnly(messageId.getUid());
+    }
+
     @Disabled("MAILBOX-403 Relaxed the matching constraints for email addresses in text bodies to reduce OpenSearch disk space usage")
     @Test
     public void textShouldNotMatchOtherAddressesOfTheSameDomain() {

@@ -1,0 +1,59 @@
+Return-Path: <user@example.com>
+org.apache.james.rspamd.flag: NO
+org.apache.james.rspamd.status: No, actions=no action score=0.0 requiredScore=15.0
+Delivered-To: user@example.com
+Received: from 172.17.0.1 (EHLO incoming.example.com) ([172.17.0.1])
+          by incoming.example.com (JAMES SMTP Server) with ESMTP ID 02a7f896
+          for <user@example.com>;
+          Mon, 02 Jun 2025 03:02:13 +0000 (UTC)
+Received: from smtp.example.com (smtp.example.com [54.36.8.78])
+	by incoming.example.com (Postfix) with ESMTPS id A337A1429ED
+	for <user@example.com>; Mon,  2 Jun 2025 03:02:13 +0000 (UTC)
+Received: from ?Open?PaaS?SMTP?server? (imap.example.com [51.75.13.34])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by smtp.example.com (Postfix) with ESMTPSA id 784DFEE30E;
+	Mon,  2 Jun 2025 05:02:13 +0200 (CEST)
+MIME-Version: 1.0
+Subject: test
+X-COPY-DELIVERY-DONE: 1
+From: User Name <user@example.com>
+To: user@example.com, "user.alt@gmail.com" <user.alt@gmail.com>
+Reply-To: user@example.com
+Date: Mon, 2 Jun 2025 03:02:11 +0000
+Message-ID: <Mime4j.241.XXXX@masked.example.com>
+User-Agent: Twake-Mail/0.15.3 Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)
+ AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36
+Content-Type: multipart/mixed;
+ boundary="-=Part.243.XYZ=-"
+
+---=Part.243.XYZ=-
+Content-Type: multipart/alternative;
+ boundary="-=Part.242.ABC=-"
+
+---=Part.242.ABC=-
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+Accept-Language: fr-FR, en-US, vi-VN, ru-RU, ar-TN, it-IT, de-DE
+Content-Language: vi-VN
+
+body
+
+---=Part.242.ABC=-
+Content-Type: text/html; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+Accept-Language: fr-FR, en-US, vi-VN, ru-RU, ar-TN, it-IT, de-DE
+Content-Language: vi-VN
+
+<div>body<br><br></div>
+---=Part.242.ABC=---
+
+---=Part.243.XYZ=-
+Content-Type: text/plain; name="=?US-ASCII?Q?big_bad_wolf.txt?=";
+ charset=windows-1252
+Content-Disposition: attachment
+Content-Transfer-Encoding: base64
+
+Y29udGVudAo=
+
+---=Part.243.XYZ=---
