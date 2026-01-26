@@ -20,6 +20,7 @@
 package org.apache.james.mailbox.opensearch.search;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Durations.ONE_HUNDRED_MILLISECONDS;
 
 import java.io.IOException;
@@ -30,11 +31,14 @@ import java.util.UUID;
 import java.util.stream.IntStream;
 
 import org.apache.james.backends.opensearch.DockerOpenSearchExtension;
+import org.apache.james.backends.opensearch.DocumentId;
 import org.apache.james.backends.opensearch.IndexName;
 import org.apache.james.backends.opensearch.OpenSearchIndexer;
 import org.apache.james.backends.opensearch.ReactorOpenSearchClient;
 import org.apache.james.backends.opensearch.ReadAliasName;
+import org.apache.james.backends.opensearch.RoutingKey;
 import org.apache.james.backends.opensearch.WriteAliasName;
+import org.apache.james.backends.opensearch.search.ScrolledSearch;
 import org.apache.james.core.Username;
 import org.apache.james.mailbox.MailboxSession;
 import org.apache.james.mailbox.MailboxSessionUtil;
@@ -55,6 +59,7 @@ import org.apache.james.mailbox.opensearch.MailboxIdRoutingKeyFactory;
 import org.apache.james.mailbox.opensearch.MailboxIndexCreationUtil;
 import org.apache.james.mailbox.opensearch.OpenSearchMailboxConfiguration;
 import org.apache.james.mailbox.opensearch.events.OpenSearchListeningMessageSearchIndex;
+import org.apache.james.mailbox.opensearch.json.JsonMessageConstants;
 import org.apache.james.mailbox.opensearch.json.MessageToOpenSearchJson;
 import org.apache.james.mailbox.opensearch.query.DefaultCriterionConverter;
 import org.apache.james.mailbox.opensearch.query.QueryConverter;
@@ -71,6 +76,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
+import org.opensearch.client.opensearch._types.SortOrder;
+import org.opensearch.client.opensearch._types.Time;
 import org.opensearch.client.opensearch._types.query_dsl.Query;
 import org.opensearch.client.opensearch._types.query_dsl.QueryBuilders;
 import org.opensearch.client.opensearch.core.SearchRequest;
@@ -101,6 +108,7 @@ class OpenSearchSearcherTest {
     ReactorOpenSearchClient client;
     private InMemoryMailboxManager storeMailboxManager;
     private IndexName indexName;
+    private WriteAliasName writeAliasName;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -115,7 +123,7 @@ class OpenSearchSearcherTest {
         InMemoryMessageId.Factory messageIdFactory = new InMemoryMessageId.Factory();
         MailboxIdRoutingKeyFactory routingKeyFactory = new MailboxIdRoutingKeyFactory();
         ReadAliasName readAliasName = new ReadAliasName(UUID.randomUUID().toString());
-        WriteAliasName writeAliasName = new WriteAliasName(UUID.randomUUID().toString());
+        writeAliasName = new WriteAliasName(UUID.randomUUID().toString());
         indexName = new IndexName(UUID.randomUUID().toString());
         MailboxIndexCreationUtil.prepareClient(client, readAliasName, writeAliasName, indexName,
             openSearch.getDockerOpenSearch().configuration(), new DefaultMailboxMappingFactory());
@@ -181,6 +189,62 @@ class OpenSearchSearcherTest {
             .containsExactlyInAnyOrderElementsOf(expectedMessageIds);
     }
 
+    @Test
+    void collapseThreadShouldReturnOnlyFirstMessagePerThread() throws IOException {
+        OpenSearchIndexer indexer = new OpenSearchIndexer(client, writeAliasName);
+        String mailboxId = "mailbox";
+
+        // Messages sorted by date DESC should be: message4(thread3), message3(thread1), message2(thread2), message1(thread1)
+        indexMessage(indexer, mailboxId, "thread3", "message4", 4, "2026-01-04T10:00:00+0000");
+        indexMessage(indexer, mailboxId, "thread1", "message3", 3, "2026-01-03T10:00:00+0000");
+        indexMessage(indexer, mailboxId, "thread2", "message2", 2, "2026-01-02T10:00:00+0000");
+        indexMessage(indexer, mailboxId, "thread1", "message1", 1, "2026-01-01T10:00:00+0000");
+
+        awaitForOpenSearch(QueryBuilders.matchAll().build().toQuery(), 4);
+
+        // Collapse on threadId should keep the first message per thread.
+        List<String> messagesCollapsedByThread = messageSearchWithCollapseThread(mailboxId);
+        assertThat(messagesCollapsedByThread).containsExactly("message4", "message3", "message2"); // message1 is excluded as thread1 is already represented by message3
+    }
+
+    @Test
+    void collapseThreadWithFromSizePaginationShouldApplyPaginationOnCollapsedResults() throws IOException {
+        OpenSearchIndexer indexer = new OpenSearchIndexer(client, writeAliasName);
+        String mailboxId = "mailbox";
+
+        // Messages sorted by date DESC should be: message4(thread3), message3(thread1), message2(thread2), message1(thread1)
+        indexMessage(indexer, mailboxId, "thread3", "message4", 4, "2026-01-04T10:00:00+0000");
+        indexMessage(indexer, mailboxId, "thread1", "message3", 3, "2026-01-03T10:00:00+0000");
+        indexMessage(indexer, mailboxId, "thread2", "message2", 2, "2026-01-02T10:00:00+0000");
+        indexMessage(indexer, mailboxId, "thread1", "message1", 1, "2026-01-01T10:00:00+0000");
+
+        awaitForOpenSearch(QueryBuilders.matchAll().build().toQuery(), 4);
+
+        // from/size should page over the collapsed result (message4, message3, message2)
+        List<String> page1 = messageSearchWithCollapseThreadUsingFromSizePaging(mailboxId, 0, 2);
+        List<String> page2 = messageSearchWithCollapseThreadUsingFromSizePaging(mailboxId, 2, 2);
+
+        assertThat(page1).containsExactly("message4", "message3");
+        assertThat(page2).containsExactly("message2"); // if from/size pagination was applied before collapse, message1 would be here
+    }
+
+    @Test
+    void collapseThreadWithScrollPaginationShouldFailBecauseCollapseIsNotSupportedInScrollContext() {
+        OpenSearchIndexer indexer = new OpenSearchIndexer(client, writeAliasName);
+        String mailboxId = "mailbox";
+
+        indexMessage(indexer, mailboxId, "thread3", "message4", 4, "2026-01-04T10:00:00+0000");
+        indexMessage(indexer, mailboxId, "thread1", "message3", 3, "2026-01-03T10:00:00+0000");
+        indexMessage(indexer, mailboxId, "thread2", "message2", 2, "2026-01-02T10:00:00+0000");
+        indexMessage(indexer, mailboxId, "thread1", "message1", 1, "2026-01-01T10:00:00+0000");
+
+        awaitForOpenSearch(QueryBuilders.matchAll().build().toQuery(), 4);
+
+        // OpenSearch rejects collapse in scroll context
+        assertThatThrownBy(() -> messageSearchWithCollapseThreadIdUsingScrollSearch(mailboxId, 1))
+            .hasMessageContaining("cannot use `collapse` in a scroll context");
+    }
+
     private Mono<ComposedMessageId> addMessage(MailboxSession session, MailboxPath mailboxPath) throws Exception {
         MessageManager messageManager = storeMailboxManager.getMailbox(mailboxPath, session);
 
@@ -202,5 +266,70 @@ class OpenSearchSearcherTest {
                         .build())
                 .block()
                 .hits().total().value()).isEqualTo(totalHits));
+    }
+
+    private void indexMessage(OpenSearchIndexer indexer, String mailboxId, String threadId, String messageId, long uid, String date) {
+        String json = "{\"" + JsonMessageConstants.MESSAGE_ID + "\":\"" + messageId + "\"," +
+            "\"" + JsonMessageConstants.THREAD_ID + "\":\"" + threadId + "\"," +
+            "\"" + JsonMessageConstants.MAILBOX_ID + "\":\"" + mailboxId + "\"," +
+            "\"" + JsonMessageConstants.UID + "\":" + uid + "," +
+            "\"" + JsonMessageConstants.DATE + "\":\"" + date + "\"}";
+
+        indexer.index(DocumentId.fromString(mailboxId + ":" + uid),
+                json,
+                RoutingKey.fromString(mailboxId))
+            .block();
+    }
+
+    private List<String> messageSearchWithCollapseThread(String mailboxId) throws IOException {
+        return client.search(new SearchRequest.Builder()
+                .index(indexName.getValue())
+                .routing(mailboxId)
+                .query(QueryBuilders.matchAll().build().toQuery())
+                .collapse(collapse -> collapse.field(JsonMessageConstants.THREAD_ID))
+                .sort(sort -> sort.field(field -> field.field(JsonMessageConstants.DATE).order(SortOrder.Desc)))
+                .sort(sort -> sort.field(field -> field.field(JsonMessageConstants.UID).order(SortOrder.Desc)))
+                .build())
+            .map(response -> response.hits().hits().stream()
+                .map(hit -> hit.source().get(JsonMessageConstants.MESSAGE_ID).asText())
+                .collect(ImmutableList.toImmutableList()))
+            .block();
+    }
+
+    private List<String> messageSearchWithCollapseThreadUsingFromSizePaging(String mailboxId, int from, int size) throws IOException {
+        // cf https://docs.opensearch.org/latest/search-plugins/searching-data/paginate/#the-from-and-size-parameters
+        return client.search(new SearchRequest.Builder()
+                .index(indexName.getValue())
+                .routing(mailboxId)
+                .query(QueryBuilders.matchAll().build().toQuery())
+                .collapse(collapse -> collapse.field(JsonMessageConstants.THREAD_ID))
+                .sort(sort -> sort.field(field -> field.field(JsonMessageConstants.DATE).order(SortOrder.Desc)))
+                .sort(sort -> sort.field(field -> field.field(JsonMessageConstants.UID).order(SortOrder.Desc)))
+                .from(from)
+                .size(size)
+                .build())
+            .map(response -> response.hits().hits().stream()
+                .map(hit -> hit.source().get(JsonMessageConstants.MESSAGE_ID).asText())
+                .collect(ImmutableList.toImmutableList()))
+            .block();
+    }
+
+    private List<String> messageSearchWithCollapseThreadIdUsingScrollSearch(String mailboxId, int sizePerPage) {
+        SearchRequest searchRequest = new SearchRequest.Builder()
+            .index(indexName.getValue())
+            .routing(mailboxId)
+            .query(QueryBuilders.matchAll().build().toQuery())
+            .collapse(collapse -> collapse.field(JsonMessageConstants.THREAD_ID))
+            .sort(sort -> sort.field(field -> field.field(JsonMessageConstants.DATE).order(SortOrder.Desc)))
+            .sort(sort -> sort.field(field -> field.field(JsonMessageConstants.UID).order(SortOrder.Desc)))
+            .size(sizePerPage)
+            .scroll(new Time.Builder().time("1m").build())
+            .build();
+
+        return new ScrolledSearch(client, searchRequest)
+            .searchHits()
+            .map(hit -> hit.source().get(JsonMessageConstants.MESSAGE_ID).asText())
+            .collect(ImmutableList.toImmutableList())
+            .block();
     }
 }
