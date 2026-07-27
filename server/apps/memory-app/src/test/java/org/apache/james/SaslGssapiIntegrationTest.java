@@ -22,6 +22,7 @@ package org.apache.james;
 import static org.apache.james.data.UsersRepositoryModuleChooser.Implementation.DEFAULT;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Duration;
 import java.util.Base64;
 import java.util.Optional;
 
@@ -40,6 +41,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.api.parallel.ResourceLock;
 
@@ -47,6 +49,9 @@ import org.junit.jupiter.api.parallel.ResourceLock;
 @ResourceLock(KerberosTestFixture.KRB5_CONFIGURATION_RESOURCE)
 class SaslGssapiIntegrationTest {
     private static final String DELEGATION_TARGET = "bob@" + KerberosTestFixture.REALM;
+    private static final String DEMO_PROPERTY = "james.test.kerberos.demo";
+    private static final String DEMO_DURATION_PROPERTY = "james.test.kerberos.demo.durationMinutes";
+    private static final long DEFAULT_DEMO_DURATION_MINUTES = 15;
     private static final String HOST = "127.0.0.1";
     private static final int MAX_SASL_ROUNDS = 10;
     private static final int SMTP_AUTH_CONTINUE = 334;
@@ -81,6 +86,40 @@ class SaslGssapiIntegrationTest {
             .addDomain(KerberosTestFixture.REALM)
             .addUser(KerberosTestFixture.USER_PRINCIPAL, "unused-password")
             .addUser(DELEGATION_TARGET, "unused-password");
+    }
+
+    @Test
+    @EnabledIfSystemProperty(named = DEMO_PROPERTY, matches = "true")
+    void thunderbirdDemo(GuiceJamesServer server) throws InterruptedException {
+        int imapPort = server.getProbe(ImapGuiceProbe.class).getImapStartTLSPort();
+        int smtpPort = server.getProbe(SmtpGuiceProbe.class).getSmtpStartTlsPort().getValue();
+        long durationMinutes = Long.getLong(DEMO_DURATION_PROPERTY, DEFAULT_DEMO_DURATION_MINUTES);
+
+        System.out.printf("""
+
+            Thunderbird GSSAPI demonstration will remain available for %d minute(s).
+            Kerberos configuration (JDK):   %s
+            Kerberos configuration (macOS): %s
+            Kerberos principal:     %s
+            Kerberos password:      %s
+            Kerberos user keytab:   %s
+            IMAP endpoint:          localhost:%d (STARTTLS)
+            IMAP service principal: %s
+            SMTP endpoint:          localhost:%d (STARTTLS)
+            SMTP service principal: %s
+            """,
+            durationMinutes,
+            kerberos.kerberosConfiguration(),
+            kerberos.macosKerberosConfiguration(),
+            KerberosTestFixture.USER_PRINCIPAL,
+            KerberosTestFixture.USER_PASSWORD,
+            kerberos.userKeyTab(),
+            imapPort,
+            kerberos.service("imap").principal(),
+            smtpPort,
+            kerberos.service("smtp").principal());
+
+        Thread.sleep(Duration.ofMinutes(durationMinutes));
     }
 
     private static AuthenticatingIMAPClient connectedImapClient(int port) throws Exception {

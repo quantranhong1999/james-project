@@ -120,6 +120,18 @@ public class KerberosTestExtension implements BeforeAllCallback, AfterAllCallbac
         return service;
     }
 
+    public Path kerberosConfiguration() {
+        return fixture.kerberosConfiguration();
+    }
+
+    public Path macosKerberosConfiguration() {
+        return fixture.macosKerberosConfiguration();
+    }
+
+    public Path userKeyTab() {
+        return fixture.userKeyTab();
+    }
+
     public GssapiTestClient client(String serviceName) throws Exception {
         return fixture.client(service(serviceName));
     }

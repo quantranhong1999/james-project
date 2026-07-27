@@ -21,6 +21,7 @@ package org.apache.james.protocols.sasl.kerberos;
 
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 
@@ -32,10 +33,12 @@ public class KerberosTestFixture implements AutoCloseable {
 
     public static final String REALM = "JAMES.TEST";
     public static final String USER_PRINCIPAL = "alice@" + REALM;
+    public static final String USER_PASSWORD = "alice-kerberos-password";
     public static final String KRB5_CONFIGURATION_RESOURCE = "java.security.krb5.conf";
 
     private final Path workDirectory;
     private final SimpleKdcServer kdcServer;
+    private final Path macosKerberosConfiguration;
     private final Path userKeyTab;
     private final String previousKrb5Configuration;
 
@@ -43,9 +46,22 @@ public class KerberosTestFixture implements AutoCloseable {
         this.workDirectory = workDirectory;
         this.previousKrb5Configuration = System.getProperty(KRB5_CONFIGURATION_RESOURCE);
         this.kdcServer = startKdc(workDirectory);
+        this.macosKerberosConfiguration = writeMacosKerberosConfiguration(workDirectory, kdcServer.getKdcTcpPort());
         this.userKeyTab = workDirectory.resolve("alice.keytab");
-        kdcServer.createPrincipal(USER_PRINCIPAL);
+        kdcServer.createPrincipal(USER_PRINCIPAL, USER_PASSWORD);
         kdcServer.exportPrincipal(USER_PRINCIPAL, userKeyTab.toFile());
+    }
+
+    public Path kerberosConfiguration() {
+        return workDirectory.resolve("krb5.conf");
+    }
+
+    public Path macosKerberosConfiguration() {
+        return macosKerberosConfiguration;
+    }
+
+    public Path userKeyTab() {
+        return userKeyTab;
     }
 
     public Service provisionService(String serviceName, String serverName) throws Exception {
@@ -87,6 +103,20 @@ public class KerberosTestFixture implements AutoCloseable {
         kdcServer.init();
         kdcServer.start();
         return kdcServer;
+    }
+
+    private static Path writeMacosKerberosConfiguration(Path workDirectory, int kdcPort) throws IOException {
+        Path configuration = workDirectory.resolve("krb5-macos.conf");
+        Files.writeString(configuration, """
+            [libdefaults]
+                default_realm = %s
+
+            [realms]
+                %s = {
+                    kdc = tcp/127.0.0.1:%d
+                }
+            """.formatted(REALM, REALM, kdcPort));
+        return configuration;
     }
 
     private static int availablePort() throws IOException {
