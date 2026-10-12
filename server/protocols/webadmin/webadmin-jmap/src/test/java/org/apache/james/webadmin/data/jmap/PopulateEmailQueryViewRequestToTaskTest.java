@@ -91,6 +91,7 @@ class PopulateEmailQueryViewRequestToTaskTest {
 
     static final DomainList NO_DOMAIN_LIST = null;
     static final Username BOB = Username.of("bob");
+    static final Username VIRTUAL_OWNER = Username.of("virtual-owner");
 
     private WebAdminServer webAdminServer;
     private MemoryTaskManager taskManager;
@@ -318,6 +319,29 @@ class PopulateEmailQueryViewRequestToTaskTest {
             .get(taskId2 + "/await");
 
         assertThat(view.listMailboxContentSortedByReceivedAt(messageId.getMailboxId(), Limit.from(12), NO_COLLAPSE_THREAD).collectList().block())
+            .containsOnly(messageId.getMessageId());
+    }
+
+    @Test
+    void populateShouldUpdateProjectionOfMailboxesWhoseOwnerIsNotAUser() throws Exception {
+        // Mailboxes can belong to virtual owners the UsersRepository does not list, eg shared mailboxes of an extension
+        MailboxSession virtualOwnerSession = mailboxManager.createSystemSession(VIRTUAL_OWNER);
+        MailboxId mailboxId = mailboxManager.createMailbox(MailboxPath.inbox(VIRTUAL_OWNER), virtualOwnerSession).get();
+        ComposedMessageId messageId = mailboxManager.getMailbox(mailboxId, virtualOwnerSession).appendMessage(
+            MessageManager.AppendCommand.builder().build("header: value\r\n\r\nbody"),
+            virtualOwnerSession).getId();
+
+        String taskId = with()
+            .queryParam("action", "populateEmailQueryView")
+            .post()
+            .jsonPath()
+            .get("taskId");
+
+        with()
+            .basePath(TasksRoutes.BASE)
+            .get(taskId + "/await");
+
+        assertThat(view.listMailboxContentSortedByReceivedAt(mailboxId, Limit.from(12), NO_COLLAPSE_THREAD).collectList().block())
             .containsOnly(messageId.getMessageId());
     }
 }
