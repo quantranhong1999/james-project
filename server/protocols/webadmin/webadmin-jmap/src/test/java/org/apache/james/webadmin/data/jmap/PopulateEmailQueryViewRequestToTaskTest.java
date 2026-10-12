@@ -26,15 +26,19 @@ import static jakarta.mail.Flags.Flag.DELETED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.spy;
 
 import jakarta.mail.Flags;
 
 import org.apache.james.core.Username;
-import org.apache.james.domainlist.api.DomainList;
 import org.apache.james.jmap.memory.projections.MemoryEmailQueryView;
 import org.apache.james.json.DTOConverter;
 import org.apache.james.mailbox.MailboxSession;
 import org.apache.james.mailbox.MessageManager;
+import org.apache.james.mailbox.exception.MailboxException;
 import org.apache.james.mailbox.inmemory.InMemoryMailboxManager;
 import org.apache.james.mailbox.inmemory.manager.InMemoryIntegrationResources;
 import org.apache.james.mailbox.model.ComposedMessageId;
@@ -42,8 +46,8 @@ import org.apache.james.mailbox.model.MailboxId;
 import org.apache.james.mailbox.model.MailboxPath;
 import org.apache.james.task.Hostname;
 import org.apache.james.task.MemoryTaskManager;
+import org.apache.james.task.Task;
 import org.apache.james.task.TaskManager;
-import org.apache.james.user.memory.MemoryUsersRepository;
 import org.apache.james.util.streams.Limit;
 import org.apache.james.webadmin.Routes;
 import org.apache.james.webadmin.WebAdminServer;
@@ -52,12 +56,14 @@ import org.apache.james.webadmin.routes.TasksRoutes;
 import org.apache.james.webadmin.tasks.TaskFromRequestRegistry;
 import org.apache.james.webadmin.utils.ErrorResponder;
 import org.apache.james.webadmin.utils.JsonTransformer;
+import org.assertj.core.api.SoftAssertions;
 import org.eclipse.jetty.http.HttpStatus;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.restassured.RestAssured;
+import reactor.core.publisher.Mono;
 import spark.Service;
 
 class PopulateEmailQueryViewRequestToTaskTest {
@@ -89,7 +95,6 @@ class PopulateEmailQueryViewRequestToTaskTest {
 
     static final String BASE_PATH = "/:username/mailboxes";
 
-    static final DomainList NO_DOMAIN_LIST = null;
     static final Username BOB = Username.of("bob");
     static final Username VIRTUAL_OWNER = Username.of("virtual-owner");
 
@@ -106,8 +111,6 @@ class PopulateEmailQueryViewRequestToTaskTest {
         taskManager = new MemoryTaskManager(new Hostname("foo"));
 
         mailboxManager = InMemoryIntegrationResources.defaultResources().getMailboxManager();
-        MemoryUsersRepository usersRepository = MemoryUsersRepository.withoutVirtualHosting(NO_DOMAIN_LIST);
-        usersRepository.addUser(BOB, "pass");
         bobSession = mailboxManager.createSystemSession(BOB);
         bobInboxboxId = mailboxManager.createMailbox(MailboxPath.inbox(BOB), bobSession)
             .get();
@@ -117,7 +120,7 @@ class PopulateEmailQueryViewRequestToTaskTest {
             new TasksRoutes(taskManager, jsonTransformer,
                 DTOConverter.of(PopulateEmailQueryViewTaskAdditionalInformationDTO.module())),
             new JMAPRoutes(
-                new EmailQueryViewPopulator(usersRepository, mailboxManager, view),
+                new EmailQueryViewPopulator(mailboxManager, view),
                 taskManager))
             .start();
 
@@ -343,5 +346,28 @@ class PopulateEmailQueryViewRequestToTaskTest {
 
         assertThat(view.listMailboxContentSortedByReceivedAt(mailboxId, Limit.from(12), NO_COLLAPSE_THREAD).collectList().block())
             .containsOnly(messageId.getMessageId());
+    }
+
+    @Test
+    void populateShouldSkipMailboxesItFailsToRead() throws Exception {
+        MailboxSession virtualOwnerSession = mailboxManager.createSystemSession(VIRTUAL_OWNER);
+        MailboxId mailboxId = mailboxManager.createMailbox(MailboxPath.inbox(VIRTUAL_OWNER), virtualOwnerSession).get();
+        ComposedMessageId messageId = mailboxManager.getMailbox(mailboxId, virtualOwnerSession).appendMessage(
+            MessageManager.AppendCommand.builder().build("header: value\r\n\r\nbody"),
+            virtualOwnerSession).getId();
+        InMemoryMailboxManager failingMailboxManager = spy(mailboxManager);
+        doReturn(Mono.error(new MailboxException("Simulated failure")))
+            .when(failingMailboxManager).getMailboxReactive(eq(MailboxPath.inbox(BOB)), any(MailboxSession.class));
+        EmailQueryViewPopulator.Progress progress = new EmailQueryViewPopulator.Progress();
+
+        Task.Result result = new EmailQueryViewPopulator(failingMailboxManager, view).populateView(progress, RunningOptions.DEFAULT).block();
+
+        SoftAssertions.assertSoftly(softly -> {
+            softly.assertThat(result).isEqualTo(Task.Result.PARTIAL);
+            softly.assertThat(progress.getFailedMailboxCount()).isEqualTo(1);
+            softly.assertThat(progress.getProcessedMailboxCount()).isEqualTo(1);
+            softly.assertThat(view.listMailboxContentSortedByReceivedAt(mailboxId, Limit.from(12), NO_COLLAPSE_THREAD).collectList().block())
+                .containsOnly(messageId.getMessageId());
+        });
     }
 }

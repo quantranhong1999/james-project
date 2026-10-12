@@ -1083,8 +1083,8 @@ You can populate this projection with the following request:
 curl -XPOST /mailboxes?task=populateEmailQueryView
 ```
 
-Will schedule a task for recomputing the fast message view projection
-for all mailboxes.
+Will schedule a task for recomputing the email query view projection
+for all mailboxes, whoever owns them.
 
 [More details about endpoints returning a task](#Endpoints_returning_a_task).
 
@@ -1107,9 +1107,9 @@ The scheduled task will have the following type
 ```
 {
   "type":"PopulateEmailQueryViewTask",
-  "processedUserCount": 3,
+  "processedMailboxCount": 3,
   "processedMessageCount": 3,
-  "failedUserCount": 2,
+  "failedMailboxCount": 2,
   "failedMessageCount": 1,
   "runningOptions": {
     "messagesPerSecond":20
