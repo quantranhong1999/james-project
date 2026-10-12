@@ -25,7 +25,6 @@ import java.time.Duration;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.function.Function;
 
 import jakarta.inject.Inject;
 
@@ -37,12 +36,13 @@ import org.apache.james.mailbox.MessageManager;
 import org.apache.james.mailbox.exception.MailboxException;
 import org.apache.james.mailbox.exception.MailboxNotFoundException;
 import org.apache.james.mailbox.model.FetchGroup;
+import org.apache.james.mailbox.model.Mailbox;
 import org.apache.james.mailbox.model.MailboxId;
-import org.apache.james.mailbox.model.MailboxPath;
 import org.apache.james.mailbox.model.MessageId;
 import org.apache.james.mailbox.model.MessageRange;
 import org.apache.james.mailbox.model.MessageResult;
 import org.apache.james.mailbox.model.ThreadId;
+import org.apache.james.mailbox.store.MailboxSessionMapperFactory;
 import org.apache.james.task.Task;
 import org.apache.james.task.Task.Result;
 import org.apache.james.util.ReactorUtils;
@@ -103,12 +103,15 @@ public class EmailQueryViewPopulator {
         }
     }
 
+    private final MailboxSessionMapperFactory mailboxSessionMapperFactory;
     private final MailboxManager mailboxManager;
     private final EmailQueryView emailQueryView;
 
     @Inject
-    EmailQueryViewPopulator(MailboxManager mailboxManager,
+    EmailQueryViewPopulator(MailboxSessionMapperFactory mailboxSessionMapperFactory,
+                            MailboxManager mailboxManager,
                             EmailQueryView emailQueryView) {
+        this.mailboxSessionMapperFactory = mailboxSessionMapperFactory;
         this.mailboxManager = mailboxManager;
         this.emailQueryView = emailQueryView;
     }
@@ -119,27 +122,27 @@ public class EmailQueryViewPopulator {
     }
 
     private Flux<MessageResult> listAllMailboxMessages(Progress progress) {
-        // Walks every mailbox, whoever owns it: listing users would skip the mailboxes of owners that are not users
+        // Walks every mailbox, whoever owns it: listing users would skip the mailboxes of owners that are not users.
+        // Mailboxes are streamed from the mapper: MailboxManager::list would hold every mailbox path in memory for the whole run.
         MailboxSession session = mailboxManager.createSystemSession(EMAIL_QUERY_VIEW_POPULATOR);
-        return Mono.fromCallable(() -> mailboxManager.list(session))
-            .subscribeOn(ReactorUtils.BLOCKING_CALL_WRAPPER)
-            .flatMapIterable(Function.identity())
-            .concatMap(mailboxPath -> listMailboxMessages(progress, mailboxPath))
+        return mailboxSessionMapperFactory.getMailboxMapper(session)
+            .list()
+            .concatMap(mailbox -> listMailboxMessages(progress, mailbox))
             .filter(messageResult -> !messageResult.getFlags().contains(DELETED));
     }
 
-    private Flux<MessageResult> listMailboxMessages(Progress progress, MailboxPath mailboxPath) {
-        MailboxSession ownerSession = mailboxManager.createSystemSession(mailboxPath.getUser());
-        return Mono.from(mailboxManager.getMailboxReactive(mailboxPath, ownerSession))
+    private Flux<MessageResult> listMailboxMessages(Progress progress, Mailbox mailbox) {
+        MailboxSession ownerSession = mailboxManager.createSystemSession(mailbox.getUser());
+        return Mono.from(mailboxManager.getMailboxReactive(mailbox.getMailboxId(), ownerSession))
             .flatMapMany(messageManager -> emailQueryView.delete(messageManager.getId())
                 .thenMany(listAllMessages(messageManager, ownerSession)))
             .doOnComplete(progress::incrementProcessedMailboxCount)
             .onErrorResume(MailboxNotFoundException.class, e -> {
-                LOGGER.info("JMAP emailQuery view re-computation skipped {} as it was deleted", mailboxPath.asString());
+                LOGGER.info("JMAP emailQuery view re-computation skipped {} as it was deleted", mailbox.generateAssociatedPath().asString());
                 return Flux.empty();
             })
             .onErrorResume(MailboxException.class, e -> {
-                LOGGER.error("JMAP emailQuery view re-computation aborted for {} as we failed listing its messages", mailboxPath.asString(), e);
+                LOGGER.error("JMAP emailQuery view re-computation aborted for {} as we failed listing its messages", mailbox.generateAssociatedPath().asString(), e);
                 progress.incrementFailedMailboxCount();
                 return Flux.empty();
             });

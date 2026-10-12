@@ -120,7 +120,7 @@ class PopulateEmailQueryViewRequestToTaskTest {
             new TasksRoutes(taskManager, jsonTransformer,
                 DTOConverter.of(PopulateEmailQueryViewTaskAdditionalInformationDTO.module())),
             new JMAPRoutes(
-                new EmailQueryViewPopulator(mailboxManager, view),
+                new EmailQueryViewPopulator(mailboxManager.getMapperFactory(), mailboxManager, view),
                 taskManager))
             .start();
 
@@ -357,10 +357,10 @@ class PopulateEmailQueryViewRequestToTaskTest {
             virtualOwnerSession).getId();
         InMemoryMailboxManager failingMailboxManager = spy(mailboxManager);
         doReturn(Mono.error(new MailboxException("Simulated failure")))
-            .when(failingMailboxManager).getMailboxReactive(eq(MailboxPath.inbox(BOB)), any(MailboxSession.class));
+            .when(failingMailboxManager).getMailboxReactive(eq(bobInboxboxId), any(MailboxSession.class));
         EmailQueryViewPopulator.Progress progress = new EmailQueryViewPopulator.Progress();
 
-        Task.Result result = new EmailQueryViewPopulator(failingMailboxManager, view).populateView(progress, RunningOptions.DEFAULT).block();
+        Task.Result result = new EmailQueryViewPopulator(mailboxManager.getMapperFactory(), failingMailboxManager, view).populateView(progress, RunningOptions.DEFAULT).block();
 
         SoftAssertions.assertSoftly(softly -> {
             softly.assertThat(result).isEqualTo(Task.Result.PARTIAL);
