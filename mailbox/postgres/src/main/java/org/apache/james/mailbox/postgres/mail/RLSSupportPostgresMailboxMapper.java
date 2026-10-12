@@ -38,11 +38,22 @@ import reactor.util.retry.Retry;
 public class RLSSupportPostgresMailboxMapper extends PostgresMailboxMapper {
     private final PostgresMailboxDAO postgresMailboxDAO;
     private final PostgresMailboxMemberDAO postgresMailboxMemberDAO;
+    private final PostgresMailboxDAO byPassRLSPostgresMailboxDAO;
 
-    public RLSSupportPostgresMailboxMapper(PostgresMailboxDAO postgresMailboxDAO, PostgresMailboxMemberDAO postgresMailboxMemberDAO) {
+    public RLSSupportPostgresMailboxMapper(PostgresMailboxDAO postgresMailboxDAO, PostgresMailboxMemberDAO postgresMailboxMemberDAO,
+                                           PostgresMailboxDAO byPassRLSPostgresMailboxDAO) {
         super(postgresMailboxDAO);
         this.postgresMailboxDAO = postgresMailboxDAO;
         this.postgresMailboxMemberDAO = postgresMailboxMemberDAO;
+        this.byPassRLSPostgresMailboxDAO = byPassRLSPostgresMailboxDAO;
+    }
+
+    @Override
+    public Flux<Mailbox> list() {
+        // Lists the mailboxes of every domain: row level security would restrict the listing to the domain of the session,
+        // or to the domain a pooled connection was last used for when the session has no domain
+        return byPassRLSPostgresMailboxDAO.getAll()
+            .map(Function.identity());
     }
 
     @Override

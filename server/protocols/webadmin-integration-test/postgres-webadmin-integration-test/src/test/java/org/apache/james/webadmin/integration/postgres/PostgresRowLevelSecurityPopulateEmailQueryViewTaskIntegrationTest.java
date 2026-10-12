@@ -1,0 +1,164 @@
+/****************************************************************
+ * Licensed to the Apache Software Foundation (ASF) under one   *
+ * or more contributor license agreements.  See the NOTICE file *
+ * distributed with this work for additional information        *
+ * regarding copyright ownership.  The ASF licenses this file   *
+ * to you under the Apache License, Version 2.0 (the            *
+ * "License"); you may not use this file except in compliance   *
+ * with the License.  You may obtain a copy of the License at   *
+ *                                                              *
+ *   http://www.apache.org/licenses/LICENSE-2.0                 *
+ *                                                              *
+ * Unless required by applicable law or agreed to in writing,   *
+ * software distributed under the License is distributed on an  *
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY       *
+ * KIND, either express or implied.  See the License for the    *
+ * specific language governing permissions and limitations      *
+ * under the License.                                           *
+ ****************************************************************/
+
+package org.apache.james.webadmin.integration.postgres;
+
+import static io.restassured.RestAssured.given;
+import static io.restassured.RestAssured.with;
+import static org.apache.james.data.UsersRepositoryModuleChooser.Implementation.DEFAULT;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.is;
+
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.List;
+
+import jakarta.inject.Inject;
+
+import org.apache.james.GuiceJamesServer;
+import org.apache.james.JamesServerBuilder;
+import org.apache.james.JamesServerExtension;
+import org.apache.james.PostgresJamesConfiguration;
+import org.apache.james.PostgresJamesServerMain;
+import org.apache.james.SearchConfiguration;
+import org.apache.james.backends.postgres.PostgresDataDefinition;
+import org.apache.james.backends.postgres.PostgresExtension;
+import org.apache.james.core.Username;
+import org.apache.james.jmap.api.projections.EmailQueryViewManager;
+import org.apache.james.mailbox.MessageManager;
+import org.apache.james.mailbox.model.ComposedMessageId;
+import org.apache.james.mailbox.model.MailboxId;
+import org.apache.james.mailbox.model.MailboxPath;
+import org.apache.james.mailbox.model.MessageId;
+import org.apache.james.mime4j.dom.Message;
+import org.apache.james.modules.MailboxProbeImpl;
+import org.apache.james.modules.TestJMAPServerModule;
+import org.apache.james.util.streams.Limit;
+import org.apache.james.utils.DataProbeImpl;
+import org.apache.james.utils.GuiceProbe;
+import org.apache.james.utils.WebAdminGuiceProbe;
+import org.apache.james.webadmin.WebAdminUtils;
+import org.apache.james.webadmin.routes.TasksRoutes;
+import org.awaitility.Awaitility;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+
+import com.google.inject.multibindings.Multibinder;
+
+import io.restassured.RestAssured;
+
+class PostgresRowLevelSecurityPopulateEmailQueryViewTaskIntegrationTest {
+    public static class EmailQueryViewProbe implements GuiceProbe {
+        private final EmailQueryViewManager emailQueryViewManager;
+
+        @Inject
+        public EmailQueryViewProbe(EmailQueryViewManager emailQueryViewManager) {
+            this.emailQueryViewManager = emailQueryViewManager;
+        }
+
+        List<MessageId> listMailboxContent(Username username, MailboxId mailboxId) {
+            return emailQueryViewManager.getEmailQueryView(username)
+                .listMailboxContentSortedByReceivedAt(mailboxId, Limit.from(10), false)
+                .collectList()
+                .block();
+        }
+
+        void clear(Username username, MailboxId mailboxId) {
+            emailQueryViewManager.getEmailQueryView(username)
+                .delete(mailboxId)
+                .block();
+        }
+    }
+
+    @RegisterExtension
+    static JamesServerExtension jamesServerExtension = new JamesServerBuilder<PostgresJamesConfiguration>(tmpDir ->
+        PostgresJamesConfiguration.builder()
+            .workingDirectory(tmpDir)
+            .configurationFromClasspath()
+            .searchConfiguration(SearchConfiguration.scanning())
+            .usersRepository(DEFAULT)
+            .eventBusImpl(PostgresJamesConfiguration.EventBusImpl.IN_MEMORY)
+            .build())
+        .extension(PostgresExtension.withRowLevelSecurity(PostgresDataDefinition.EMPTY_MODULE))
+        .server(configuration -> PostgresJamesServerMain.createServer(configuration)
+            .overrideWith(new TestJMAPServerModule())
+            .overrideWith(binder -> Multibinder.newSetBinder(binder, GuiceProbe.class).addBinding().to(EmailQueryViewProbe.class)))
+        .build();
+
+    private static final Username ALICE = Username.of("alice@domain1.tld");
+    private static final Username BOB = Username.of("bob@domain2.tld");
+    private static final String PASSWORD = "password";
+
+    @BeforeEach
+    void setUp(GuiceJamesServer server) throws Exception {
+        server.getProbe(DataProbeImpl.class).fluent()
+            .addDomain("domain1.tld")
+            .addDomain("domain2.tld")
+            .addUser(ALICE.asString(), PASSWORD)
+            .addUser(BOB.asString(), PASSWORD);
+
+        RestAssured.requestSpecification = WebAdminUtils.buildRequestSpecification(server.getProbe(WebAdminGuiceProbe.class).getWebAdminPort())
+            .build();
+    }
+
+    @Test
+    void populateEmailQueryViewShouldPopulateTheMailboxesOfEveryDomain(GuiceJamesServer server) throws Exception {
+        EmailQueryViewProbe emailQueryViewProbe = server.getProbe(EmailQueryViewProbe.class);
+        ComposedMessageId aliceMessage = appendMessage(server, ALICE);
+        ComposedMessageId bobMessage = appendMessage(server, BOB);
+        // Simulates a view that missed the messages, eg the listener was not registered when they were stored
+        Awaitility.await().atMost(Duration.ofSeconds(30))
+            .untilAsserted(() -> {
+                assertThat(emailQueryViewProbe.listMailboxContent(ALICE, aliceMessage.getMailboxId())).containsOnly(aliceMessage.getMessageId());
+                assertThat(emailQueryViewProbe.listMailboxContent(BOB, bobMessage.getMailboxId())).containsOnly(bobMessage.getMessageId());
+            });
+        emailQueryViewProbe.clear(ALICE, aliceMessage.getMailboxId());
+        emailQueryViewProbe.clear(BOB, bobMessage.getMailboxId());
+        assertThat(emailQueryViewProbe.listMailboxContent(ALICE, aliceMessage.getMailboxId())).isEmpty();
+        assertThat(emailQueryViewProbe.listMailboxContent(BOB, bobMessage.getMailboxId())).isEmpty();
+
+        String taskId = with()
+            .post("/mailboxes?task=populateEmailQueryView")
+            .jsonPath()
+            .get("taskId");
+
+        given()
+            .basePath(TasksRoutes.BASE)
+            .get(taskId + "/await")
+        .then()
+            .body("status", is("completed"))
+            .body("additionalInformation.failedMailboxCount", is(0))
+            .body("additionalInformation.failedMessageCount", is(0));
+
+        assertThat(emailQueryViewProbe.listMailboxContent(ALICE, aliceMessage.getMailboxId())).containsOnly(aliceMessage.getMessageId());
+        assertThat(emailQueryViewProbe.listMailboxContent(BOB, bobMessage.getMailboxId())).containsOnly(bobMessage.getMessageId());
+    }
+
+    private ComposedMessageId appendMessage(GuiceJamesServer server, Username username) throws Exception {
+        MailboxProbeImpl mailboxProbe = server.getProbe(MailboxProbeImpl.class);
+        mailboxProbe.createMailbox(MailboxPath.inbox(username));
+        return mailboxProbe.appendMessage(username.asString(), MailboxPath.inbox(username),
+            MessageManager.AppendCommand.builder()
+                .build(Message.Builder.of()
+                    .setSubject("small message")
+                    .setBody("small message for postgres", StandardCharsets.UTF_8)
+                    .build()));
+    }
+}

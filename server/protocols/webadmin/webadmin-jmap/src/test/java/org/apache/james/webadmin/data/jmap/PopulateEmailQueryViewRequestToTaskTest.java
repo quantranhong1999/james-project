@@ -34,6 +34,7 @@ import static org.mockito.Mockito.spy;
 import jakarta.mail.Flags;
 
 import org.apache.james.core.Username;
+import org.apache.james.jmap.api.projections.DefaultEmailQueryViewManager;
 import org.apache.james.jmap.memory.projections.MemoryEmailQueryView;
 import org.apache.james.json.DTOConverter;
 import org.apache.james.mailbox.MailboxSession;
@@ -120,7 +121,7 @@ class PopulateEmailQueryViewRequestToTaskTest {
             new TasksRoutes(taskManager, jsonTransformer,
                 DTOConverter.of(PopulateEmailQueryViewTaskAdditionalInformationDTO.module())),
             new JMAPRoutes(
-                new EmailQueryViewPopulator(mailboxManager.getMapperFactory(), mailboxManager, view),
+                new EmailQueryViewPopulator(mailboxManager.getMapperFactory(), mailboxManager, new DefaultEmailQueryViewManager(view)),
                 taskManager))
             .start();
 
@@ -360,7 +361,7 @@ class PopulateEmailQueryViewRequestToTaskTest {
             .when(failingMailboxManager).getMailboxReactive(eq(bobInboxboxId), any(MailboxSession.class));
         EmailQueryViewPopulator.Progress progress = new EmailQueryViewPopulator.Progress();
 
-        Task.Result result = new EmailQueryViewPopulator(mailboxManager.getMapperFactory(), failingMailboxManager, view).populateView(progress, RunningOptions.DEFAULT).block();
+        Task.Result result = new EmailQueryViewPopulator(mailboxManager.getMapperFactory(), failingMailboxManager, new DefaultEmailQueryViewManager(view)).populateView(progress, RunningOptions.DEFAULT).block();
 
         SoftAssertions.assertSoftly(softly -> {
             softly.assertThat(result).isEqualTo(Task.Result.PARTIAL);

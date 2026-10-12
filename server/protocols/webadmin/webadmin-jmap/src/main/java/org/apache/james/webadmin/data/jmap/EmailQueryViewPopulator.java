@@ -30,6 +30,7 @@ import jakarta.inject.Inject;
 
 import org.apache.james.core.Username;
 import org.apache.james.jmap.api.projections.EmailQueryView;
+import org.apache.james.jmap.api.projections.EmailQueryViewManager;
 import org.apache.james.mailbox.MailboxManager;
 import org.apache.james.mailbox.MailboxSession;
 import org.apache.james.mailbox.MessageManager;
@@ -56,6 +57,9 @@ public class EmailQueryViewPopulator {
     private static final Logger LOGGER = LoggerFactory.getLogger(EmailQueryViewPopulator.class);
     private static final Duration PERIOD = Duration.ofSeconds(1);
     private static final Username EMAIL_QUERY_VIEW_POPULATOR = Username.of("email-query-view-populator");
+
+    private record MessageToProject(EmailQueryView ownerView, MessageResult message) {
+    }
 
     static class Progress {
         private final AtomicLong processedMailboxCount;
@@ -105,15 +109,15 @@ public class EmailQueryViewPopulator {
 
     private final MailboxSessionMapperFactory mailboxSessionMapperFactory;
     private final MailboxManager mailboxManager;
-    private final EmailQueryView emailQueryView;
+    private final EmailQueryViewManager emailQueryViewManager;
 
     @Inject
     EmailQueryViewPopulator(MailboxSessionMapperFactory mailboxSessionMapperFactory,
                             MailboxManager mailboxManager,
-                            EmailQueryView emailQueryView) {
+                            EmailQueryViewManager emailQueryViewManager) {
         this.mailboxSessionMapperFactory = mailboxSessionMapperFactory;
         this.mailboxManager = mailboxManager;
-        this.emailQueryView = emailQueryView;
+        this.emailQueryViewManager = emailQueryViewManager;
     }
 
     Mono<Result> populateView(Progress progress, RunningOptions runningOptions) {
@@ -121,21 +125,24 @@ public class EmailQueryViewPopulator {
             .map(result -> progress.getFailedMailboxCount() > 0 ? Result.PARTIAL : result);
     }
 
-    private Flux<MessageResult> listAllMailboxMessages(Progress progress) {
+    private Flux<MessageToProject> listAllMailboxMessages(Progress progress) {
         // Walks every mailbox, whoever owns it: listing users would skip the mailboxes of owners that are not users.
         // Mailboxes are streamed from the mapper: MailboxManager::list would hold every mailbox path in memory for the whole run.
         MailboxSession session = mailboxManager.createSystemSession(EMAIL_QUERY_VIEW_POPULATOR);
         return mailboxSessionMapperFactory.getMailboxMapper(session)
             .list()
             .concatMap(mailbox -> listMailboxMessages(progress, mailbox))
-            .filter(messageResult -> !messageResult.getFlags().contains(DELETED));
+            .filter(messageToProject -> !messageToProject.message().getFlags().contains(DELETED));
     }
 
-    private Flux<MessageResult> listMailboxMessages(Progress progress, Mailbox mailbox) {
+    private Flux<MessageToProject> listMailboxMessages(Progress progress, Mailbox mailbox) {
         MailboxSession ownerSession = mailboxManager.createSystemSession(mailbox.getUser());
+        // The view of the owner, as readers of the mailbox use: on Postgres with row level security, it is scoped by domain
+        EmailQueryView ownerView = emailQueryViewManager.getEmailQueryView(mailbox.getUser());
         return Mono.from(mailboxManager.getMailboxReactive(mailbox.getMailboxId(), ownerSession))
-            .flatMapMany(messageManager -> emailQueryView.delete(messageManager.getId())
+            .flatMapMany(messageManager -> ownerView.delete(messageManager.getId())
                 .thenMany(listAllMessages(messageManager, ownerSession)))
+            .map(message -> new MessageToProject(ownerView, message))
             .doOnComplete(progress::incrementProcessedMailboxCount)
             .onErrorResume(MailboxNotFoundException.class, e -> {
                 LOGGER.info("JMAP emailQuery view re-computation skipped {} as it was deleted", mailbox.generateAssociatedPath().asString());
@@ -148,7 +155,8 @@ public class EmailQueryViewPopulator {
             });
     }
 
-    private Mono<Result> correctProjection(MessageResult messageResult, Progress progress) {
+    private Mono<Result> correctProjection(MessageToProject messageToProject, Progress progress) {
+        MessageResult messageResult = messageToProject.message();
         return Mono.fromCallable(() -> {
             MailboxId mailboxId = messageResult.getMailboxId();
             MessageId messageId = messageResult.getMessageId();
@@ -156,7 +164,7 @@ public class EmailQueryViewPopulator {
             ZonedDateTime receivedAt = ZonedDateTime.ofInstant(messageResult.getInternalDate().toInstant(), ZoneOffset.UTC);
             return new EmailQueryView.Entry(mailboxId, messageId, receivedAt, threadId);
         })
-            .flatMap(entry -> emailQueryView.save(entry.getMailboxId(), entry.getReceivedAt(), entry.getMessageId(), entry.getThreadId()))
+            .flatMap(entry -> messageToProject.ownerView().save(entry.getMailboxId(), entry.getReceivedAt(), entry.getMessageId(), entry.getThreadId()))
             .thenReturn(Result.COMPLETED)
             .doOnSuccess(any -> progress.incrementProcessedMessageCount())
             .onErrorResume(e -> {
@@ -169,8 +177,8 @@ public class EmailQueryViewPopulator {
             });
     }
 
-    private Mono<Result> correctProjection(Flux<MessageResult> entries, RunningOptions runningOptions, Progress progress) {
-        return entries.transform(ReactorUtils.<MessageResult, Result>throttle()
+    private Mono<Result> correctProjection(Flux<MessageToProject> entries, RunningOptions runningOptions, Progress progress) {
+        return entries.transform(ReactorUtils.<MessageToProject, Result>throttle()
                 .elements(runningOptions.getMessagesPerSecond())
                 .per(PERIOD)
                 .forOperation(entry -> correctProjection(entry, progress)))
