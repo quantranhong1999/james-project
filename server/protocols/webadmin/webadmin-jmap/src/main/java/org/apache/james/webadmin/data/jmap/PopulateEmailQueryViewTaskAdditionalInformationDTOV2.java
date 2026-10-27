@@ -22,44 +22,25 @@ package org.apache.james.webadmin.data.jmap;
 import java.time.Instant;
 import java.util.Optional;
 
-import org.apache.james.json.DTOModule;
-import org.apache.james.server.task.json.dto.AdditionalInformationDTO;
-import org.apache.james.server.task.json.dto.AdditionalInformationDTOModule;
+import org.apache.james.webadmin.data.jmap.PopulateEmailQueryViewTask.AdditionalInformation.MailboxCounters;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.google.common.annotations.VisibleForTesting;
 
-public class PopulateEmailQueryViewTaskAdditionalInformationDTOV2 implements AdditionalInformationDTO {
-    public static final String TYPE = "PopulateEmailQueryViewTaskV2";
-
-    public static AdditionalInformationDTOModule<PopulateEmailQueryViewTask.AdditionalInformation, PopulateEmailQueryViewTaskAdditionalInformationDTOV2> module() {
-        return DTOModule.forDomainObject(PopulateEmailQueryViewTask.AdditionalInformation.class)
-            .convertToDTO(PopulateEmailQueryViewTaskAdditionalInformationDTOV2.class)
-            .toDomainObjectConverter(PopulateEmailQueryViewTaskAdditionalInformationDTOV2::toDomainObject)
-            .toDTOConverter(PopulateEmailQueryViewTaskAdditionalInformationDTOV2::toDTO)
-            .typeName(TYPE)
-            .withFactory(AdditionalInformationDTOModule::new);
-    }
-
-    private static PopulateEmailQueryViewTask.AdditionalInformation toDomainObject(PopulateEmailQueryViewTaskAdditionalInformationDTOV2 dto) {
-        return new PopulateEmailQueryViewTask.AdditionalInformation(
-            dto.getRunningOptions()
-                .map(RunningOptionsDTO::asDomainObject)
-                .orElse(RunningOptions.DEFAULT),
-            dto.getProcessedMailboxCount(),
-            dto.getProcessedMessageCount(),
-            dto.getFailedMailboxCount(),
-            dto.getFailedMessageCount(),
-            dto.timestamp);
-    }
-
-    private static PopulateEmailQueryViewTaskAdditionalInformationDTOV2 toDTO(PopulateEmailQueryViewTask.AdditionalInformation details, String type) {
+// Format of the runs that walk mailboxes
+// Once picked by the Deserializer of the interface, parsed directly: not looked up again by type name
+@JsonTypeInfo(use = JsonTypeInfo.Id.NONE)
+@JsonDeserialize(as = PopulateEmailQueryViewTaskAdditionalInformationDTOV2.class)
+public final class PopulateEmailQueryViewTaskAdditionalInformationDTOV2 implements PopulateEmailQueryViewTaskAdditionalInformationDTO {
+    static PopulateEmailQueryViewTaskAdditionalInformationDTOV2 from(PopulateEmailQueryViewTask.AdditionalInformation details, MailboxCounters counters, String type) {
         return new PopulateEmailQueryViewTaskAdditionalInformationDTOV2(
             type,
             details.timestamp(),
-            details.getProcessedMailboxCount(),
+            counters.processedMailboxCount(),
             details.getProcessedMessageCount(),
-            details.getFailedMailboxCount(),
+            counters.failedMailboxCount(),
             details.getFailedMessageCount(),
             Optional.of(RunningOptionsDTO.asDTO(details.getRunningOptions())));
     }
@@ -87,6 +68,18 @@ public class PopulateEmailQueryViewTaskAdditionalInformationDTOV2 implements Add
         this.failedMailboxCount = failedMailboxCount;
         this.failedMessageCount = failedMessageCount;
         this.runningOptions = runningOptions;
+    }
+
+    @Override
+    public PopulateEmailQueryViewTask.AdditionalInformation toDomainObject() {
+        return new PopulateEmailQueryViewTask.AdditionalInformation(
+            runningOptions
+                .map(RunningOptionsDTO::asDomainObject)
+                .orElse(RunningOptions.DEFAULT),
+            new MailboxCounters(processedMailboxCount, failedMailboxCount),
+            processedMessageCount,
+            failedMessageCount,
+            timestamp);
     }
 
     @Override

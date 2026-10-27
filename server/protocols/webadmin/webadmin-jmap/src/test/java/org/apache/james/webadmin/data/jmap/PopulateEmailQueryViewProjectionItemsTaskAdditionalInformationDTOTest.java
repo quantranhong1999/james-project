@@ -19,62 +19,48 @@
 
 package org.apache.james.webadmin.data.jmap;
 
-import static org.apache.james.JsonSerializationVerifier.recursiveComparisonConfiguration;
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.time.Instant;
 
 import org.apache.james.JsonSerializationVerifier;
 import org.apache.james.json.JsonGenericSerializer;
-import org.apache.james.server.task.json.dto.AdditionalInformationDTO;
-import org.apache.james.task.TaskExecutionDetails;
 import org.apache.james.util.ClassLoaderUtils;
+import org.apache.james.webadmin.data.jmap.PopulateEmailQueryViewTask.AdditionalInformation.MailboxCounters;
+import org.apache.james.webadmin.data.jmap.PopulateEmailQueryViewTask.AdditionalInformation.UserCounters;
 import org.junit.jupiter.api.Test;
 
 class PopulateEmailQueryViewProjectionItemsTaskAdditionalInformationDTOTest {
     private static final Instant INSTANT = Instant.parse("2007-12-03T10:15:30.00Z");
     private static final PopulateEmailQueryViewTask.AdditionalInformation DOMAIN_OBJECT = new PopulateEmailQueryViewTask.AdditionalInformation(
         RunningOptions.withMessageRatePerSecond(20),
-        1,
+        new MailboxCounters(1, 3),
         2,
-        3,
         4,
         INSTANT);
-    private static final PopulateEmailQueryViewTask.LegacyAdditionalInformation LEGACY_DOMAIN_OBJECT = new PopulateEmailQueryViewTask.LegacyAdditionalInformation(
+    private static final PopulateEmailQueryViewTask.AdditionalInformation LEGACY_DOMAIN_OBJECT = new PopulateEmailQueryViewTask.AdditionalInformation(
         RunningOptions.withMessageRatePerSecond(20),
-        1,
+        new UserCounters(1, 3),
         2,
-        3,
         4,
         INSTANT);
 
     @Test
     void shouldMatchJsonSerializationContract() throws Exception {
-        JsonSerializationVerifier.dtoModule(PopulateEmailQueryViewTaskAdditionalInformationDTOV2.module())
+        JsonSerializationVerifier.dtoModule(PopulateEmailQueryViewTaskAdditionalInformationDTO.module())
             .bean(DOMAIN_OBJECT)
             .json(ClassLoaderUtils.getSystemResourceAsString("json/populateAll.additionalInformation.json"))
+            .testCase(LEGACY_DOMAIN_OBJECT, ClassLoaderUtils.getSystemResourceAsString("json/populateAll.additionalInformation.legacy.json"))
             .verify();
     }
 
     @Test
-    void legacyShouldMatchJsonSerializationContract() throws Exception {
-        JsonSerializationVerifier.dtoModule(PopulateEmailQueryViewTaskAdditionalInformationDTO.module())
-            .bean(LEGACY_DOMAIN_OBJECT)
-            .json(ClassLoaderUtils.getSystemResourceAsString("json/populateAll.additionalInformation.legacy.json"))
-            .verify();
-    }
-
-    @Test
-    void bothFormatsShouldBeReadableWhenBothModulesAreRegistered() throws Exception {
-        JsonGenericSerializer<TaskExecutionDetails.AdditionalInformation, AdditionalInformationDTO> serializer = JsonGenericSerializer
-            .<TaskExecutionDetails.AdditionalInformation, AdditionalInformationDTO>forModules(PopulateEmailQueryViewTaskAdditionalInformationDTOV2.module(), PopulateEmailQueryViewTaskAdditionalInformationDTO.module())
+    void shouldRejectDetailsMixingUserAndMailboxCounters() {
+        JsonGenericSerializer<PopulateEmailQueryViewTask.AdditionalInformation, PopulateEmailQueryViewTaskAdditionalInformationDTO> serializer = JsonGenericSerializer
+            .forModules(PopulateEmailQueryViewTaskAdditionalInformationDTO.module())
             .withoutNestedType();
 
-        assertThat(serializer.deserialize(ClassLoaderUtils.getSystemResourceAsString("json/populateAll.additionalInformation.legacy.json")))
-            .usingRecursiveComparison(recursiveComparisonConfiguration)
-            .isEqualTo(LEGACY_DOMAIN_OBJECT);
-        assertThat(serializer.deserialize(ClassLoaderUtils.getSystemResourceAsString("json/populateAll.additionalInformation.json")))
-            .usingRecursiveComparison(recursiveComparisonConfiguration)
-            .isEqualTo(DOMAIN_OBJECT);
+        assertThatThrownBy(() -> serializer.deserialize(ClassLoaderUtils.getSystemResourceAsString("json/populateAll.additionalInformation.mixedCounters.json")))
+            .isInstanceOf(JsonGenericSerializer.InvalidTypeException.class);
     }
 }

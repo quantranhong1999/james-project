@@ -1110,7 +1110,7 @@ The scheduled task will have the following type
 
 ```
 {
-  "type":"PopulateEmailQueryViewTaskV2",
+  "type":"PopulateEmailQueryViewTask",
   "processedMailboxCount": 3,
   "processedMessageCount": 3,
   "failedMailboxCount": 2,
@@ -1127,8 +1127,7 @@ be read makes the task end as `failed`, the other mailboxes are still
 processed.
 
 Tasks run before James 3.10 report `processedUserCount` and
-`failedUserCount` instead, and their `additionalInformation` type is
-`PopulateEmailQueryViewTask`.
+`failedUserCount` instead.
 
 Response codes:
 

@@ -36,86 +36,45 @@ public class PopulateEmailQueryViewTask implements Task {
     static final TaskType TASK_TYPE = TaskType.of("PopulateEmailQueryViewTask");
 
     public static class AdditionalInformation implements TaskExecutionDetails.AdditionalInformation {
+        public sealed interface Counters permits MailboxCounters, UserCounters {
+        }
+
+        public record MailboxCounters(long processedMailboxCount, long failedMailboxCount) implements Counters {
+        }
+
+        // Counters of the runs that walked users rather than mailboxes, kept readable after the upgrade
+        public record UserCounters(long processedUserCount, long failedUserCount) implements Counters {
+        }
+
         private static AdditionalInformation from(EmailQueryViewPopulator.Progress progress,
                                                   RunningOptions runningOptions) {
             return new AdditionalInformation(runningOptions,
-                progress.getProcessedMailboxCount(),
+                new MailboxCounters(progress.getProcessedMailboxCount(), progress.getFailedMailboxCount()),
                 progress.getProcessedMessageCount(),
-                progress.getFailedMailboxCount(),
                 progress.getFailedMessageCount(),
                 Clock.systemUTC().instant());
         }
 
         private final RunningOptions runningOptions;
-        private final long processedMailboxCount;
+        private final Counters counters;
         private final long processedMessageCount;
-        private final long failedMailboxCount;
         private final long failedMessageCount;
         private final Instant timestamp;
 
-        public AdditionalInformation(RunningOptions runningOptions, long processedMailboxCount, long processedMessageCount, long failedMailboxCount, long failedMessageCount, Instant timestamp) {
+        public AdditionalInformation(RunningOptions runningOptions, Counters counters, long processedMessageCount, long failedMessageCount, Instant timestamp) {
             this.runningOptions = runningOptions;
-            this.processedMailboxCount = processedMailboxCount;
+            this.counters = counters;
             this.processedMessageCount = processedMessageCount;
-            this.failedMailboxCount = failedMailboxCount;
             this.failedMessageCount = failedMessageCount;
             this.timestamp = timestamp;
         }
 
-        public long getProcessedMailboxCount() {
-            return processedMailboxCount;
+        public Counters getCounters() {
+            return counters;
         }
 
         public long getProcessedMessageCount() {
             return processedMessageCount;
-        }
-
-        public long getFailedMailboxCount() {
-            return failedMailboxCount;
-        }
-
-        public long getFailedMessageCount() {
-            return failedMessageCount;
-        }
-
-        public RunningOptions getRunningOptions() {
-            return runningOptions;
-        }
-
-        @Override
-        public Instant timestamp() {
-            return timestamp;
-        }
-    }
-
-    // Details of the runs that walked users rather than mailboxes, kept readable after the upgrade
-    public static class LegacyAdditionalInformation implements TaskExecutionDetails.AdditionalInformation {
-        private final RunningOptions runningOptions;
-        private final long processedUserCount;
-        private final long processedMessageCount;
-        private final long failedUserCount;
-        private final long failedMessageCount;
-        private final Instant timestamp;
-
-        public LegacyAdditionalInformation(RunningOptions runningOptions, long processedUserCount, long processedMessageCount, long failedUserCount, long failedMessageCount, Instant timestamp) {
-            this.runningOptions = runningOptions;
-            this.processedUserCount = processedUserCount;
-            this.processedMessageCount = processedMessageCount;
-            this.failedUserCount = failedUserCount;
-            this.failedMessageCount = failedMessageCount;
-            this.timestamp = timestamp;
-        }
-
-        public long getProcessedUserCount() {
-            return processedUserCount;
-        }
-
-        public long getProcessedMessageCount() {
-            return processedMessageCount;
-        }
-
-        public long getFailedUserCount() {
-            return failedUserCount;
         }
 
         public long getFailedMessageCount() {
